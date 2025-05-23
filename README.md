@@ -1,10 +1,20 @@
-# Calculate LCA using Fishbase
+# Calculate LCA using Fishbase and then WoRMS
 
-Most LCA pipelines out there rely on NCBI's Taxonomy database. However, that database is large and fish are notoriously prone to change. Other databases like Fishbase are updated more often, so here is a tool that takes a table of BLAST results, takes the hits for each ASV, and queries the Fishbase API to ask for the 'updated'/'current' lineage of the hit, then uses the Fishbase lineages to calculate LCAs. Sometimes several similar species have wrong, outdated families on NCBI Taxonomy that are correct on Fishbase, and when you use NCBI Taxonomy, you will get an order-level LCA, while Fishbase-based LCA will have a family or genus-level LCA. Fishbase also tracks outdated synonyms, so 
+Most LCA pipelines out there rely on NCBI's Taxonomy database. However, that database is large and fish are notoriously prone to change. Other databases like Fishbase are updated more often, so here is a tool that takes a table of BLAST results, takes the hits for each ASV, and queries the Fishbase database to ask for the 'updated'/'current' lineage of the hit, then uses the Fishbase lineages to calculate LCAs. Sometimes several similar species have wrong, outdated families on NCBI Taxonomy that are correct on Fishbase, and when you use NCBI Taxonomy, you will get an order-level LCA, while Fishbase-based LCA will have a family or genus-level LCA. Fishbase also tracks outdated synonyms, so we might get more accurate species-level names.
 
 Be careful, though: Fishbase includes *fish* will return nothing for non-fish species. In these cases we go back to World Register of Marine Species (WoRMS) for the whales and the sealions. If you have a mix of marine and non-marine species in your results better use a different database. We work with marine eDNA so filtering out non-marine hits is very useful for us, lots of similar looking freshwater fish out there!
 
 Since Fishbase often changes you better write down the date you ran this tool with your data.
+
+# Usage
+
+     python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv
+
+# ALTERNATIVE SCRIPT
+
+I gave this script to Claude 4 and asked it to make it production-ready. Claude added one crashing bug I fixed, but also added input data caching, better logging, and better error handling. I left that script in a second file:
+
+    python calculateLCAWithFishbase_Claude.py -f blast_results.tsv -o lca_results.tsv
 
 ## Method: Species ID
 
@@ -72,55 +82,36 @@ options:
 Looks like this:
 
 ```
-ASV_name        Class   Order   Family  Genus   Species PercentageID    Species_In_LCA
-ASV_17067       Teleostei       Ophidiiformes   Ophidiidae      dropped dropped 89.60   Ventichthys biospeedoi, Bassozetus zenkevitchi
-ASV_17079       Teleostei       Ovalentaria incertae sedis      Pomacentridae   Acanthochromis  Acanthochromis polyacanthus     79.03   Acanthochromis polyacanthus
-ASV_17100       Teleostei       Centrarchiformes        Aplodactylidae  Crinodus        Aplodactylus lophodon   100.00  Aplodactylus lophodon
-ASV_17102       Teleostei       Anguilliformes  Muraenidae      Gymnothorax     Gymnothorax prasinus    99.02   Gymnothorax prasinus
-ASV_17176       Teleostei       Myctophiformes  Myctophidae     Symbolophorus   Symbolophorus evermanni 89.11   Symbolophorus evermanni
-ASV_17291       Teleostei       Stomiiformes    Sternoptychidae Valenciennellus Valenciennellus tripunctulatus  83.87   Valenciennellus tripunctulatus
-ASV_17546       Teleostei       Ophidiiformes   Ophidiidae      dropped dropped 76.22   Lepophidium profundorum, Genypterus chilensis, Genypterus tigerinus, Genypterus blacodes, Genypterus capensis, Apagesoma australe
+ASV_name        Class   Order   Family  Genus   Species PercentageID    Species_In_LCA	Source
+ASV_17067       Teleostei       Ophidiiformes   Ophidiidae      dropped dropped 89.60   Ventichthys biospeedoi, Bassozetus zenkevitchi	Worms
+ASV_17079       Teleostei       Ovalentaria incertae sedis      Pomacentridae   Acanthochromis  Acanthochromis polyacanthus     79.03   Acanthochromis polyacanthus	Worms
+ASV_17100       Teleostei       Centrarchiformes        Aplodactylidae  Crinodus        Aplodactylus lophodon   100.00  Aplodactylus lophodon	Worms
+ASV_17102       Teleostei       Anguilliformes  Muraenidae      Gymnothorax     Gymnothorax prasinus    99.02   Gymnothorax prasinus	Fishbase
+ASV_17176       Teleostei       Myctophiformes  Myctophidae     Symbolophorus   Symbolophorus evermanni 89.11   Symbolophorus evermanni	Fishbase
+ASV_17291       Teleostei       Stomiiformes    Sternoptychidae Valenciennellus Valenciennellus tripunctulatus  83.87   Valenciennellus tripunctulatus	Fishbase
+ASV_17546       Teleostei       Ophidiiformes   Ophidiidae      dropped dropped 76.22   Lepophidium profundorum, Genypterus chilensis, Genypterus tigerinus, Genypterus blacodes, Genypterus capensis, Apagesoma australe	Fishbase
 ```
 
 A tab-delimited table, one row per unique query in the BLAST results, showing which Fishbase taxonomic levels were included, and which were dropped. It also shows the average BLAST identity of the species-hits included in the LCA, and the species that were included in the LCA. *IMPORTANT*: By default BLAST does not report queries with no hits. That means the output table of this script will not contain all queries.
 
 ## Installation
 
-    conda install -c bioconda pytaxonkit
-    pip install pyworms
+Any fairly recent Python shu
 
 ## FAQ
 
-- Why does this depend on pytaxonkit? I thought it ignores NCBI Taxonomy?
-
-Yes, but I have not found a nice way to pull out the species name from a row of BLAST hits. I have played with [taxonerd](https://github.com/nleguillarme/taxonerd) but it feels like overkill for this problem. Relying on the NCBI Taxonomy ID for the species name, then pulling out the Fishbase lineage for the NCBI species name is the best middle-ground in my opinion. I *could* base this on the sscinames column produced by BLAST, but when BLAST does not have the NCBI taxonomy database present when running that column will be all NA.
-
 - How long does this run for?
 
-In my tests for a whole eDNA dataset with a few thousand ASVs, about 15 minutes. The Fishbase API accepts only 500 species at a time so it takes most of the running time to pull down all lineages.
-
-- You could make this faster using a dump of the Fishbase database!?
-
-Yes but then I have to distribute that database dump with the code, and that dump will be outdated within a week, but others will find the database dump on Github and base their own scripts on the outdated dump and I'd rather not have that happen.
-
-- Can this take other taxonomic databases?
-
-I have thought about adding AFD (Australian Faunal Directory) as another source. Maybe later.
+In my tests for a whole eDNA dataset with a few thousand ASVs, about 2 minutes.
 
 - I have weird taxonomic sub-levels that I am interested in, why are they dropped?
 
 The script only works with class, order, family, genus, species. That way I can make the LCA calculation fairly lazy: instead of having to build a graph of all taxonomic levels and doing weird graph-based magic, I can just calculate the sets of unique species, unique genera, unique families, unique orders, unique classes, and check set size after filtering. If the set size is > 1, set this taxonomic level's taxonomic label to 'dropped'. Easier than breaking my head trying to come up with recursive tree-walking algorithms for the sake of methodological complexity you can publish in a paper, I'd rather have results.
 
-- My BLAST results have NAs for taxonomy IDs so everything breaks.
-
-Your BLAST database was not made using taxonomy IDs. Make a table of sequence IDs and their associated taxonomy IDs, then run this:
-
-    makeblastdb -dbtype nucl -in your_database.fasta -parse_seqids -taxid_map your_database.taxids.txt
-
 - I may have unacccepted taxonomic names in my results.
 
 Fishbase is nice in that it knows about many, but not all unaccepted names. If an unaccepted name made it into Fishbase the API returns the accepted version of this name along with the taxonomic lineage of the new, accepted name. We then use that name for the LCA. Neat, isn't it!  
-On the other hand, if your species is not in Fishbase it will be dropped from the LCA calculation and it will get written to missing.csv.
+The script then checks whether the species is in WoRMS - and if it's not in WoRMS, the BLAST hit gets written to the missing output file and ignored from the LCA calculation.
 
 - I have more questions!
 

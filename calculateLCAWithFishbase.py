@@ -57,90 +57,114 @@ all_fishbase = pd.read_parquet("https://fishbase.ropensci.org/fishbase/species.p
 fams = pd.read_parquet("https://fishbase.ropensci.org/fishbase/families.parquet")
 
 synonyms = pd.read_parquet('https://fishbase.ropensci.org/fishbase/synonyms.parquet')
-synonyms.to_csv('test.csv')
 
 merged = pd.merge(all_fishbase, fams, on = 'FamCode')[ ['SpecCode', 'Genus', 'Species_x', 'Family', 'Order', 'Class']]
 merged = merged.rename(columns = {"Species_x": 'Species'})
 merged['Species'] = merged['Genus'] + ' ' + merged['Species']
+merged = merged.reset_index() # just doubly making sure
+
+fishbase_genera_to_lineage = {}
+for index, row in merged.iterrows():
+    fishbase_genera_to_lineage[row['Genus']] = [row['Family'], row['Order'], row['Class']]
 
 speccode_to_row = dict(zip(merged['SpecCode'], merged['Species']))
 
-all_genera = set(merged['Genus'])
 all_synonyms = dict(zip(synonyms['SynGenus'] + ' ' + synonyms['SynSpecies'], synonyms['SpecCode']))
+
+
+worms = pd.read_csv('worms_species.txt.gz', sep = '\t', header = None, names = ['Species', 'Genus', 'Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'g', 'trash', 'sp'])
+worms_genera_to_lineage = {}
+for index, row in worms.iterrows():
+    worms_genera_to_lineage[row['Genus']] = [row['Family'], row['Order'], row['Class']]
+
+worms_species = set(worms['Species'])
+# Aaadonta angaurana      Aaadonta        Animalia        Mollusca        Gastropoda      Stylommatophora Endodontidae    Aaadonta                angaurana
 
 look_up = {}
 
-for line in open(args.file):
-    # LOADS of typos in our species names. fixing them here.
-    line = line.replace('Petroschmidtia albonotatus', 'Petroschmidtia albonotata')
-
-    ll = line.rstrip().split('\t')
-
-    pident = float(ll[6])
-    if pident < pident_cutoff:
-        continue
-    ll = line.rstrip().split()
-
-    
-
-
-    #taxid = ll[2]
-    # We need to find the scientific name of this species. The problem is that I've seen every possible variant of species
-    # names in this text.
-    # we therefore go through the line word by word, and check if it is in our big genus list. Then the next item has to be a species - in some rare cases, there are two species names.
-    # in other cases the species is also not in fishbase.
-    found_genus = False
-    found_species = False
-    for index, element in enumerate(ll):
-        if element in all_genera:
-            genus = element
-            thisspecies = ll[index+1]
-            found_genus = True
-            break
-        if index+1 == len(ll):
-            # are we at the end?
-            break
-
-        # different case - we have synonyms! those are not in fishbase' species table
-        # but in fishbase synonyms table. so we have to take those hits
-        # and link them back to the fishbase species table
-        if (element + ' ' + ll[index+1]) in all_synonyms:
-            correct_spec_code = all_synonyms[ element + ' ' + ll[index+1]]
-            correct_species = speccode_to_row[correct_spec_code]
-            genus, thisspecies = correct_species.split(' ')
-            found_genus = True
-            break
-
-    assert found_genus, 'ERROR: did not find genus for line %s'%(ll)
-    species = f'{genus} {thisspecies}'
-
-    lineage = merged[merged['Genus'] == genus].head(1)
-    # the lineage's species may be wrong but that's ok - we only look by genus
-    family = lineage['Family'].values[0]
-    order = lineage['Order'].values[0]
-    thisclass = lineage['Class'].values[0]
-
-    #look_up[species] = [ ("C", thisclass),
-    #                    ("O", order),
-    #                    ("F", family),
-    #                    ("G", genus),
-    #                    ("S", species) ]
-
-    lineage = [ ("C", thisclass),
-                        ("O", order),
-                        ("F", family),
-                        ("G", genus),
-                        ("S", species) ]
-
-    if ll[0] not in asv_hits:
-        asv_hits[ll[0]] = [ (pident, lineage) ]
-    else:
-        asv_hits[ll[0]].append( (pident, lineage) )
-
 with open(args.missing_out, 'w') as out:
-    for c in missing_c:
-        name = '\t'.join(c)
-        out.write(f'{name}\t{missing_c[c]}\n')
+    for line in open(args.file):
+        # LOADS of typos in our species names. fixing them here.
+        line = line.replace('Petroschmidtia albonotatus', 'Petroschmidtia albonotata')
+
+        ll = line.rstrip().split('\t')
+
+        pident = float(ll[6])
+        if pident < pident_cutoff:
+            continue
+        ll = line.rstrip().split()
+
+        # We need to find the scientific name of this species. The problem is that I've seen every possible variant of species
+        # names in this text.
+        # we therefore go through the line word by word, and check if it is in our big genus list. Then the next item has to be a species - in some rare cases, there are two species names.
+        # in other cases the species is also not in fishbase.
+        found_genus = False
+        found_species = False
+        in_fishbase = False
+        in_worms = False
+        for index, element in enumerate(ll):
+            if element in fishbase_genera_to_lineage:
+                genus = element
+                thisspecies = ll[index+1]
+                found_genus = True
+                in_fishbase = True
+                break
+            if index+1 == len(ll):
+                # are we at the end?
+                break
+
+            # different case - we have synonyms! those are not in fishbase' species table
+            # but in fishbase synonyms table. so we have to take those hits
+            # and link them back to the fishbase species table
+            if (element + ' ' + ll[index+1]) in all_synonyms:
+                correct_spec_code = all_synonyms[ element + ' ' + ll[index+1]]
+                correct_species = speccode_to_row[correct_spec_code]
+                genus, thisspecies = correct_species.split(' ')
+                found_genus = True
+                in_fishbase = True
+                break
+
+            # found in nothing - is it in Worms?
+            if element in worms_genera_to_lineage:
+                genus = element
+                thisspecies = ll[index+1]
+                found_genus = True
+                in_worms = True
+
+                break
+
+        if not found_genus:
+            out.write(line)
+            continue
+
+        species = f'{genus} {thisspecies}'
+
+        source = 'none'
+        if in_fishbase:
+            #lineage = merged[merged['Genus'] == genus].head(1)
+            lineage = fishbase_genera_to_lineage[genus]
+            # the lineage's species may be wrong but that's ok - we only look by genus
+            source = 'fishbase'
+        if in_worms:
+            lineage = worms_genera_to_lineage[genus]
+            #lineage = worms[worms['Genus'] == genus].head(1)
+
+            source = 'worms'
+        
+
+        family, order, thisclass = lineage
+
+        lineage = [ ("C", thisclass),
+                            ("O", order),
+                            ("F", family),
+                            ("G", genus),
+                            ("S", species) ]
+
+        if ll[0] not in asv_hits:
+            asv_hits[ll[0]] = [ (source, pident, lineage) ]
+        else:
+            asv_hits[ll[0]].append( (source, pident, lineage) )
+
 
 with open(args.output, 'w') as out:
     out.write('ASV_name\tClass\tOrder\tFamily\tGenus\tSpecies\tPercentageID\tSpecies_In_LCA\n')
@@ -153,15 +177,17 @@ with open(args.output, 'w') as out:
         families = set()
         orders = set()
         classes = set()
+        sources = set()
         for a in orf_hits:
             # this is one HIT it has all the levels
-            pident, lineage = a
+            source, pident, lineage = a
             thisclass, thisorder, thisfamily, thisgenus, thisspecies = [x[1] for x in lineage]
             classes.add( (pident, thisclass) )
             orders.add( (pident, thisorder) )
             families.add( (pident, thisfamily) )
             genera.add( (pident, thisgenus) )
             species.add( (pident, thisspecies) )
+            sources.add(source)
 
 
         #[('C', 'Actinopterygii'), ('O', 'Ophidiiformes'), ('F', 'Ophidiidae'), ('G', 'Ventichthys'), ('S', 'Ventichthys biospeedoi')]
@@ -174,4 +200,4 @@ with open(args.output, 'w') as out:
         lca_fam_perc, lca_fam, _ = get_lca(families)
         lca_order_perc, lca_order, _ = get_lca(orders)
         lca_class_perc, lca_class, _ = get_lca(classes)
-        out.write(f'{asv_name}\t{lca_class}\t{lca_order}\t{lca_fam}\t{lca_genus}\t{lca_spec}\t{lca_spec_perc:.2f}\t{", ".join(included_spec)}\n')
+        out.write(f'{asv_name}\t{lca_class}\t{lca_order}\t{lca_fam}\t{lca_genus}\t{lca_spec}\t{lca_spec_perc:.2f}\t{", ".join(included_spec)}\t{", ".join(sources)}\n')
