@@ -6,9 +6,26 @@ Be careful, though: Fishbase includes *fish* will return nothing for non-fish sp
 
 Since Fishbase often changes you better write down the date you ran this tool with your data.
 
-## LCA calculation
+## Method: Species ID
+
+Normally, you can rely on NCBI taxonomy IDs and it's simple enough to pull them from BLAST results. However, we don't have NCBI taxonomy IDs for many species we work with. We work with external partners' internal databases that have not been published yet, and those databases include many firsts.
+
+Instead this script does this:
+
+- go through the tabular blast results, check if every word is a valid genus in 1. Fishbase, 2. Fishbase synonyms, 3. Worms. We want to trust the Fishbase taxonomy the most but not every species we hit is in Fishbase. Mammals etc. will instead hit into Worms.
+- if the word is a genus, it follows that the next word is a species.
+- using the genus name, ask Fishbase what the taxonomy for that genus is. If the genus is not in Fishbase, ask Worms. If the genus is not in Worms, write to the MISSING_OUT file and ignore from LCA calculation.
+
+## Method: LCA calculation
 
 The LCA calculation works the same way as [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s LCA calculation. Given a group of potential species for an ASV, take the species with the highest percentage base-pair identity, subtract 1 from the identity, and then include all species above that cutoff in the LCA. The LCA itself is just a grouping: if there are several species within the cutoff, then the species is set to 'dropped' and we go up one taxonomic level, repeat for the genus, repeat for the family, repeat for the class, repeat for the order. There's no LCA voting or similar, though that's not hard to add.
+
+
+## Data sources
+
+Fishbase: RopenSci hosts Parquet files of Fishbase species, families, and synonyms. The Python script accesses those directly.
+
+Worms: I downloaded a relatively recent dump of WoRMS from GBIF at https://www.gbif.org/dataset/2d59e5db-57ad-41ff-97d6-11f5fb264527 and extracted the species names from the file `taxon.txt`. That file is included here (worms_species.txt). `grep -P '\tSpecies\t' taxon.txt | cut -d'    ' -f 7,8,11,12,13,14,15,16,17,18 | gzip > worms_species.txt.gz`
 
 ## Input
 

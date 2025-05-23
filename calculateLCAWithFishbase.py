@@ -97,12 +97,13 @@ for line in open(args.file):
             thisspecies = ll[index+1]
             found_genus = True
             break
+        if index+1 == len(ll):
+            # are we at the end?
+            break
+
         # different case - we have synonyms! those are not in fishbase' species table
         # but in fishbase synonyms table. so we have to take those hits
         # and link them back to the fishbase species table
-        if index+1 == len(ll):
-            break
-
         if (element + ' ' + ll[index+1]) in all_synonyms:
             correct_spec_code = all_synonyms[ element + ' ' + ll[index+1]]
             correct_species = speccode_to_row[correct_spec_code]
