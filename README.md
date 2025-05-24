@@ -61,7 +61,7 @@ The input is blast-output, tabular, using this output format:
 
 --pident changes how the BLAST results are parsed, hits below that cutoff will never make it into the LCA.
 
---missing_out changes the filename of the file missing species are written to, by default 'missing.csv'. Missing species are species present in the BLAST results and on NCBI Taxonomy, but are not in Fishbase. These species are a mix of non-marine species and species with sp./cf. names.
+--missing_out changes the filename of the file missing species are written to, by default 'missing.csv'. Missing species are BLAST result lines where we couldn't find anything in Fishbase, nor in WoRMS, nor in the NCBI Taxonomy. Ideally this file should be empty - if there are many rows in this file, something may have gone wrong (missing NCBI taxonomy IDs in the BLAST output?).
 
 ## Output
 
