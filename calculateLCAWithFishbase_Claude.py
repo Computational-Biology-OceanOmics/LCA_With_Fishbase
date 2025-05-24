@@ -30,7 +30,7 @@ import pandas as pd
 class Config:
     """Configuration settings for the LCA analysis."""
     DEFAULT_CUTOFF: float = 1.0
-    DEFAULT_PIDENT_CUTOFF: float = 0.0
+    DEFAULT_PIDENT_CUTOFF: float = 90.0
     BLAST_COLUMNS = [
         'qseqid', 'sseqid', 'staxids', 'sscinames', 'scomnames', 'sskingdoms',
         'pident', 'length', 'qlen', 'slen', 'mismatch', 'gapopen', 'gaps',
@@ -776,7 +776,7 @@ def main():
     parser.add_argument(
         '--worms_file', 
         type=Path,
-        help='Path to WoRMS species file (optional)'
+        help='Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.'
     )
     parser.add_argument(
         '--log_level', 

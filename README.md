@@ -22,6 +22,13 @@ Most of this code is AI-written. I've written an initial prototype (minus the NC
 
      python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
+
+# *IMPORTANT*
+
+- The BLAST results need the taxonomy ID. Make sure that the taxonomy ID is included in the BLAST output and not just N/A. 
+- Make sure that the BLAST results are formatted correctly; see below in the Input section.
+- Adjust the percent identity (--pident), by default this script includes everything with >= 90% identity. That may be too lenient.
+
 ## Method: Species ID:
 
 What the script does:
