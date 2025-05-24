@@ -12,15 +12,18 @@ Expected BLAST format:
 import logging
 import statistics
 import sys
+import time
+import tarfile
+import gzip
 from argparse import ArgumentParser
 from collections import Counter, OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from urllib.error import URLError
-
+from urllib.request import urlopen, urlretrieve
+import json
 import pandas as pd
-
 
 # Configuration
 @dataclass
@@ -35,6 +38,8 @@ class Config:
         'qcovs', 'qcovhsp'
     ]
     PIDENT_COLUMN_INDEX: int = 6
+    NCBI_TAXDUMP_URL: str = "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz"
+
     
 
 @dataclass
@@ -65,6 +70,150 @@ class LCAResult:
     included_taxa: Set[str]
 
 
+class NCBITaxdumpParser:
+    """Parses NCBI taxdump files for taxonomic information."""
+    
+    def __init__(self, cache_dir: Path):
+        self.cache_dir = cache_dir
+        self.cache_dir.mkdir(exist_ok=True)
+        self.logger = logging.getLogger(__name__)
+        self.taxid_to_lineage = {}
+        self.taxid_to_parent = {}
+        self.taxid_to_rank = {}
+        self.taxid_to_name = {}
+        
+    def download_and_extract_taxdump(self) -> Path:
+        """Download and extract NCBI taxdump if not already cached."""
+        taxdump_dir = self.cache_dir / "taxdump"
+        nodes_file = taxdump_dir / "nodes.dmp"
+        names_file = taxdump_dir / "names.dmp"
+        
+        if nodes_file.exists() and names_file.exists():
+            self.logger.info("Using cached NCBI taxdump files")
+            return taxdump_dir
+        
+        taxdump_tar = self.cache_dir / "taxdump.tar.gz"
+        
+        if not taxdump_tar.exists():
+            self.logger.info("Downloading NCBI taxdump...")
+            try:
+                urlretrieve(Config.NCBI_TAXDUMP_URL, taxdump_tar)
+                self.logger.info(f"Downloaded taxdump to: {taxdump_tar}")
+            except Exception as e:
+                self.logger.error(f"Failed to download taxdump: {e}")
+                raise
+        
+        # Extract taxdump
+        self.logger.info("Extracting taxdump...")
+        taxdump_dir.mkdir(exist_ok=True)
+        
+        with tarfile.open(taxdump_tar, 'r:gz') as tar:
+            tar.extractall(taxdump_dir)
+        
+        self.logger.info(f"Extracted taxdump to: {taxdump_dir}")
+        return taxdump_dir
+    
+    def parse_nodes_file(self, nodes_file: Path):
+        """Parse nodes.dmp file to build taxonomy tree structure."""
+        self.logger.info("Parsing nodes.dmp...")
+        
+        with open(nodes_file, 'r') as f:
+            for line in f:
+                parts = [p.strip() for p in line.split('\t|\t')]
+                if len(parts) >= 3:
+                    taxid = parts[0]
+                    parent_taxid = parts[1]
+                    rank = parts[2]
+                    
+                    self.taxid_to_parent[taxid] = parent_taxid
+                    self.taxid_to_rank[taxid] = rank
+        
+        self.logger.info(f"Parsed {len(self.taxid_to_parent)} taxonomy nodes")
+    
+    def parse_names_file(self, names_file: Path):
+        """Parse names.dmp file to get scientific names."""
+        self.logger.info("Parsing names.dmp...")
+        
+        with open(names_file, 'r') as f:
+            for line in f:
+                parts = [p.strip() for p in line.split('\t|\t')]
+                if len(parts) >= 4:
+                    taxid = parts[0]
+                    name = parts[1]
+                    name_class = parts[3].rstrip('\t|')
+                    
+                    # Only store scientific names
+                    if name_class == "scientific name":
+                        self.taxid_to_name[taxid] = name
+        
+        self.logger.info(f"Parsed {len(self.taxid_to_name)} scientific names")
+    
+    def build_lineage(self, taxid: str) -> Optional[TaxonomicLineage]:
+        """Build complete taxonomic lineage for a given taxid."""
+        if not taxid or taxid == 'N/A' or taxid not in self.taxid_to_parent:
+            return None
+        
+        # Check cache first
+        if taxid in self.taxid_to_lineage:
+            return self.taxid_to_lineage[taxid]
+        
+        # Traverse up the taxonomic tree
+        lineage_data = {
+            'superkingdom': None,
+            'kingdom': None,
+            'phylum': None,
+            'class': None,
+            'order': None,
+            'family': None,
+            'genus': None,
+            'species': None
+        }
+        
+        current_taxid = taxid
+        visited = set()  # Prevent infinite loops
+        
+        while current_taxid and current_taxid != '1' and current_taxid not in visited:
+            visited.add(current_taxid)
+            
+            if current_taxid in self.taxid_to_rank and current_taxid in self.taxid_to_name:
+                rank = self.taxid_to_rank[current_taxid]
+                name = self.taxid_to_name[current_taxid]
+                
+                if rank in lineage_data:
+                    lineage_data[rank] = name
+            
+            # Move to parent
+            if current_taxid in self.taxid_to_parent:
+                current_taxid = self.taxid_to_parent[current_taxid]
+            else:
+                break
+        
+        # Create TaxonomicLineage object
+        lineage = TaxonomicLineage(
+            class_name=lineage_data['class'] or 'Unknown',
+            order=lineage_data['order'] or 'Unknown',
+            family=lineage_data['family'] or 'Unknown',
+            genus=lineage_data['genus'] or 'Unknown',
+            species=lineage_data['species'] or self.taxid_to_name.get(taxid, 'Unknown')
+        )
+        
+        # Cache the result
+        self.taxid_to_lineage[taxid] = lineage
+        return lineage
+    
+    def load_taxdump(self):
+        """Load and parse the complete NCBI taxdump."""
+        taxdump_dir = self.download_and_extract_taxdump()
+        
+        nodes_file = taxdump_dir / "nodes.dmp"
+        names_file = taxdump_dir / "names.dmp"
+        
+        self.parse_nodes_file(nodes_file)
+        self.parse_names_file(names_file)
+        
+        self.logger.info("NCBI taxdump loaded successfully")
+
+
 class DatabaseManager:
     """Manages downloading and caching of taxonomic databases."""
     
@@ -72,6 +221,7 @@ class DatabaseManager:
         self.cache_dir = cache_dir or Path.cwd() / "cache"
         self.cache_dir.mkdir(exist_ok=True)
         self.logger = logging.getLogger(__name__)
+        self.ncbi_parser = NCBITaxdumpParser(self.cache_dir)
         
     def _download_with_cache(self, url: str, filename: str) -> pd.DataFrame:
         """Download file with caching support."""
@@ -177,6 +327,22 @@ class DatabaseManager:
             self.logger.error(f"Failed to load WoRMS data: {e}")
             return {}, set()
 
+    def load_ncbi_taxdump(self):
+        """Load NCBI taxdump data."""
+        self.ncbi_parser.load_taxdump()
+    
+    def query_ncbi_taxonomy(self, taxid: str) -> Optional[TaxonomicLineage]:
+        """
+        Query NCBI Taxonomy database for a given taxid using local taxdump.
+        
+        Args:
+            taxid: NCBI Taxonomy ID
+            
+        Returns:
+            TaxonomicLineage object or None if not found
+        """
+        return self.ncbi_parser.build_lineage(taxid)
+
 
 class SpeciesNameCorrector:
     """Handles species name corrections and standardization."""
@@ -208,17 +374,23 @@ class TaxonomicAssigner:
     """Handles taxonomic assignment logic."""
     
     def __init__(self, fishbase_genera: Dict, fishbase_speccode: Dict, 
-                 fishbase_synonyms: Dict, worms_genera: Dict, worms_species: Set):
+                 fishbase_synonyms: Dict, worms_genera: Dict, worms_species: Set,
+                 db_manager: DatabaseManager):
         self.fishbase_genera = fishbase_genera
         self.fishbase_speccode = fishbase_speccode
         self.fishbase_synonyms = fishbase_synonyms
         self.worms_genera = worms_genera
         self.worms_species = worms_species
+        self.db_manager = db_manager
         self.logger = logging.getLogger(__name__)
     
-    def find_species_info(self, line_elements: List[str]) -> Optional[Tuple[str, str, str, TaxonomicLineage]]:
+    def find_species_info(self, line_elements: List[str], taxid: Optional[str] = None) -> Optional[Tuple[str, str, str, TaxonomicLineage]]:
         """
         Find species information from BLAST line elements.
+        
+        Args:
+            line_elements: Split BLAST line elements
+            taxid: NCBI taxonomy ID if available
         
         Returns:
             Tuple of (genus, species, source, lineage) or None if not found
@@ -228,13 +400,21 @@ class TaxonomicAssigner:
         if genus:
             return genus, species, 'fishbase', lineage
         
-        # Try WoRMS
+        # Try WoRMS second
         genus, species, lineage = self._search_worms(line_elements)
         if genus:
             return genus, species, 'worms', lineage
         
-        return None
-    
+        # Try NCBI Taxonomy third
+        if taxid:
+            lineage = self._search_ncbi(taxid)
+            if lineage:
+                genus = lineage.genus
+                species = lineage.species
+                return genus, species, 'ncbi', lineage
+        
+        return None 
+
     def _search_fishbase(self, elements: List[str]) -> Tuple[Optional[str], Optional[str], Optional[TaxonomicLineage]]:
         """Search in Fishbase data."""
         # Direct genus match
@@ -274,6 +454,10 @@ class TaxonomicAssigner:
         
         return None, None, None
     
+    def _search_ncbi(self, taxid: str) -> Optional[TaxonomicLineage]:
+        """Search in NCBI Taxonomy database."""
+        return self.db_manager.query_ncbi_taxonomy(taxid)
+
     def _search_worms(self, elements: List[str]) -> Tuple[Optional[str], Optional[str], Optional[TaxonomicLineage]]:
         """Search in WoRMS data."""
         for i, element in enumerate(elements[:-1]):
@@ -365,11 +549,13 @@ class BLASTLCAAnalyzer:
         worms_genera, worms_species = self.db_manager.load_worms_data(
             worms_file or Path("worms_species.txt.gz")
         )
+        # Load NCBI
+        self.db_manager.load_ncbi_taxdump()
         
         # Initialize taxonomic assigner
         self.assigner = TaxonomicAssigner(
             fishbase_genera, fishbase_speccode, fishbase_synonyms,
-            worms_genera, worms_species
+            worms_genera, worms_species, self.db_manager
         )
     
     def process_blast_file(self, input_file: Path, pident_cutoff: float, 
@@ -407,8 +593,15 @@ class BLASTLCAAnalyzer:
                         line_elements = corrected_line.split()
                         asv_name = line_elements[0]
                         
+                        # Extract taxid if available (3rd column in BLAST format)
+                        taxid = None
+                        if len(elements) > 2 and elements[2] != 'N/A':
+                            # Handle multiple taxids separated by semicolons
+                            taxids = elements[2].split(';')
+                            taxid = taxids[0] if taxids else None
+                        
                         # Find species information
-                        species_info = self.assigner.find_species_info(line_elements)
+                        species_info = self.assigner.find_species_info(line_elements, taxid)
                         
                         if species_info is None:
                             missing_out.write(line)
