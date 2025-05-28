@@ -1,16 +1,22 @@
 # Calculate LCA using Fishbase, then WoRMS and then NCBI
 
-Calculates LCA using the Fishbase taxonomy - if that fails, the WoRMS taxonomy - if that fails, the NCBI Taxonomy.
+This tool calculates Lowest Common Ancestor (LCA) assignments for BLAST results using multiple taxonomy databases in order of preference: Fishbase → WoRMS → NCBI Taxonomy.
 
-Most LCA pipelines out there rely on NCBI's Taxonomy database. However, that database is large and fish are notoriously prone to change. Other databases like Fishbase are updated more often, so here is a tool that takes a table of BLAST results, takes the hits for each ASV, and queries the Fishbase database to ask for the 'updated'/'current' lineage of the hit, then uses the Fishbase lineages to calculate LCAs. Sometimes several similar species have wrong, outdated families on NCBI Taxonomy that are correct on Fishbase, and when you use NCBI Taxonomy, you will get an order-level LCA, while Fishbase-based LCA will have a family or genus-level LCA. Fishbase also tracks outdated synonyms, so we might get more accurate species-level names.
+Most LCA scripts rely solely on NCBI's Taxonomy database. However, fish taxonomy changes frequently, and NCBI often contains outdated classifications. Fishbase and WoRMS are updated more regularly and provide more accurate lineage information for marine organisms. Plus, Fishbase follows mostly Betancur-R, and what more could one ask for?
 
-What this script does:
+The tool processes BLAST results through a three-step approach:
 
-1. For every BLAST hit, check the lineage using Fishbase. If all hits for a query are in Fishbase, calculate a simple LCA using those hits.
-2. If the hit is not in Fishbase, check WoRMS, and calculate the LCA.
-3. If the hit is in neither Fishbase nor WoRMS, use NCBI Taxonomy.
+Fishbase first: Queries Fishbase taxonomy for each BLAST hit. If all hits for a query sequence are found, calculates LCA using Fishbase lineages.  
+WoRMS fallback: For hits not found in Fishbase, queries the World Register of Marine Species (WoRMS) database.  
+NCBI backup: Only uses NCBI Taxonomy when species aren't found in either Fishbase or WoRMS.  
 
-Since these databases often changes you better write down the date you ran this tool with your data.
+When a query hits several species in different databases, a mix of the above may be used.
+
+# Input/Output
+
+Input: a table of BLAST hits (see below for format)
+
+Output: a table of LCAs for every query in the BLAST table.
 
 # Usage
 
@@ -28,12 +34,12 @@ Most of this code is AI-written. I've written an initial prototype (minus the NC
 
      python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
-
 # *IMPORTANT*
 
 - The BLAST results need the taxonomy ID. Make sure that the taxonomy ID is included in the BLAST output and not just N/A. 
 - Make sure that the BLAST results are formatted correctly; see below in the Input section.
 - Adjust the percent identity (--pident), by default this script includes everything with >= 90% identity. That may be too lenient.
+- Fishbase, WoRMS, and NCBI Taxonomy change often. Write down the date you ran this tool.
 
 ## Method: Species ID:
 
