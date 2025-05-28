@@ -6,17 +6,17 @@ Most LCA scripts rely solely on NCBI's Taxonomy database. However, fish taxonomy
 
 The tool processes BLAST results through a three-step approach:
 
-Fishbase first: Queries Fishbase taxonomy for each BLAST hit. If all hits for a query sequence are found, calculates LCA using Fishbase lineages.  
-WoRMS fallback: For hits not found in Fishbase, queries the World Register of Marine Species (WoRMS) database.  
-NCBI backup: Only uses NCBI Taxonomy when species aren't found in either Fishbase or WoRMS.  
+**Fishbase first**: Queries Fishbase taxonomy for each BLAST hit. If all hits for a query sequence are found, calculates LCA using Fishbase lineages.  
+**WoRMS fallback**: For hits not found in Fishbase, queries the World Register of Marine Species (WoRMS) database.  
+**NCBI backup**: Only uses NCBI Taxonomy when species aren't found in either Fishbase or WoRMS.  
 
 When a query hits several species in different databases, a mix of the above may be used.
 
 # Input/Output
 
-Input: a table of BLAST hits (see below for format)
+**Input**: a table of BLAST hits (see below for format)
 
-Output: a table of LCAs for every query in the BLAST table.
+**Output**: a table of LCAs for every query in the BLAST table.
 
 # Usage
 
@@ -26,11 +26,11 @@ Output: a table of LCAs for every query in the BLAST table.
 
     pip install pandas pyarrow fastparquet
 
-Any version should be fine?
+Any fairly recent version (2023-2025) should be fine, I believe.
 
 # Why that Claude in the filename?
 
-Most of this code is AI-written. I've written an initial prototype (minus the NCBI Taxonomy!!!) and gave that to Claude for hardening and making production-ready. The orignal, non-AI code lives at calculateLCAWithFishbase.py. Same usage if you don't want to trust our AI overlords (I did fix a few bugs Claude had introduced).
+I've written an initial prototype (minus the NCBI Taxonomy!!!) of this code and then gave that to Claude for hardening and making production-ready. I then fixed a bunch of Claude-introduced bugs, removed most of the unnecessary comments, and added some minor bugfixes that my original implementation had already. The orignal, non-AI code lives at calculateLCAWithFishbase.py. Same usage if you don't want to trust our AI overlords.
 
      python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
@@ -45,7 +45,6 @@ Most of this code is AI-written. I've written an initial prototype (minus the NC
 
 What the script does:
 - go through the tabular blast results, check if every word is a valid genus in 1. Fishbase, 2. Fishbase synonyms, 3. Worms. We want to trust the Fishbase taxonomy the most but not every species we hit is in Fishbase. Mammals etc. will instead hit into Worms.
-- if the word is a genus, it follows that the next word is a species.
 - using the genus name, ask Fishbase what the taxonomy for that genus is. If the genus is not in Fishbase, ask Worms. If the genus is not in Worms, write to the MISSING_OUT file and ignore from LCA calculation.
 - if both Fishbase and WoRMS were not found in the row, assume that the third column is the NCBI taxonomy ID. Use that to look up the lineage instead.
 
@@ -68,8 +67,7 @@ The input is blast-output, tabular, using this output format:
 
      -outfmt "6 qseqid sseqid staxids sscinames scomnames sskingdoms pident length qlen slen mismatch gapopen gaps qstart qend sstart send stitle evalue bitscore qcovs qcovhsp"
 
-
---cutoff changes how lenient the LCA calculation it is - the larger the cutoff, the more species are included in an LCA.
+--cutoff changes how lenient the LCA calculation it is - the larger the cutoff, the more species are included in an LCA. By default this is 1 - meaning that a species with 98% identity and another species with 98.5% identity are both included in the LCA, as they are within 1% of each other's identities.
 
 --pident changes how the BLAST results are parsed, hits below that cutoff will never make it into the LCA.
 
