@@ -16,6 +16,12 @@ Since these databases often changes you better write down the date you ran this 
 
     python calculateLCAWithFishbase_Claude.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
+# Dependencies
+
+    pip install pandas pyarrow fastparquet
+
+Any version should be fine?
+
 # Why that Claude in the filename?
 
 Most of this code is AI-written. I've written an initial prototype (minus the NCBI Taxonomy!!!) and gave that to Claude for hardening and making production-ready. The orignal, non-AI code lives at calculateLCAWithFishbase.py. Same usage if you don't want to trust our AI overlords (I did fix a few bugs Claude had introduced).
