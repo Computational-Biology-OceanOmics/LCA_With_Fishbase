@@ -86,10 +86,6 @@ ASV_17546       Teleostei       Ophidiiformes   Ophidiidae      dropped dropped 
 
 A tab-delimited table, one row per unique query in the BLAST results, showing which Fishbase taxonomic levels were included, and which were dropped. It also shows the average BLAST identity of the species-hits included in the LCA, and the species that were included in the LCA. *IMPORTANT*: By default BLAST does not report queries with no hits. That means the output table of this script will not contain all queries.
 
-## Installation
-
-Any fairly recent Python should be OK - we only need `pandas` installed.
-
 ## FAQ
 
 - How long does this run for?
