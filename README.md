@@ -109,6 +109,10 @@ The script then checks whether the species is in WoRMS - lastly, your misspelled
 
 Please contact me at pbayer AT minderoo.org
 
+## Acknowledgments
+
+- Thanks to Dr Shannon Corrigan for pushing me to use the *correct* taxonomy.
+
 ## CHANGELOG
 
 - v0.02: adding NCBI taxonomy
