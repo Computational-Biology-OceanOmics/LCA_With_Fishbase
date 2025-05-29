@@ -40,6 +40,8 @@ I've written an initial prototype (minus the NCBI Taxonomy!!!) of this code and 
 - Make sure that the BLAST results are formatted correctly; see below in the Input section.
 - Adjust the percent identity (--pident), by default this script includes everything with >= 90% identity. That may be too lenient.
 - Fishbase, WoRMS, and NCBI Taxonomy change often. Write down the date you ran this tool.
+- Some sequences on NCBI or other databases do not have specific taxonomic labels, such as 'Carangidae sp.'. These lead to very high-level LCAs, obviously. Consider removing them before running this script.
+- The script does no filtering for alignment length or anything else, just percent identity of the alignment. Consider filtering by query coverage % at least.
 
 ## Method: Species ID:
 
