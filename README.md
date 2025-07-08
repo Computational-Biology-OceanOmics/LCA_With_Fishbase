@@ -146,6 +146,7 @@ Please contact me at pbayer AT minderoo.org
 
 ## CHANGELOG
 
+- v0.03: added script for better compatibility with the FAIRe metadata standards
 - v0.02: adding NCBI taxonomy
 - v0.01: initial release a.k.a. 'works on my system'
 
