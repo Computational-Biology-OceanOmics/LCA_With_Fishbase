@@ -16,11 +16,31 @@ When a query hits several species in different databases, a mix of the above may
 
 **Input**: a table of BLAST hits (see below for format)
 
+**Worms file**: Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.
+
 **Output**: a table of LCAs for every query in the BLAST table.
+
+# Input/Output when using calculateLCAWithFishbase_Claude_FAIReCompatible.py
+
+**Input**: a table of BLAST hits (see below for format)
+
+**Worms file**: Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.
+
+**ASV_table**: First column should be 'ASV', the next columns should be the samples, the last column should be 'ASV_sequence'
+
+**Output**: a table of LCAs for every query in the BLAST table.
+
+**Raw Output**: A taxaRaw table following the FAIRe standards.
+
+**Final Output**: A taxaFinal table following the FAIRe standards.
 
 # Usage
 
     python calculateLCAWithFishbase_Claude.py -f blast_results.tsv -o lca_results.tsv --pident 97
+
+# Usage for FAIRe compatibility
+
+    python calculateLCAWithFishbase_Claude_FAIReCompatible.py -f blast_results.tsv -o lca_results.tsv --pident 90 --worms_file worms_species.txt.gz --asv_table asv_count_table.tsv --raw_output taxaRaw.tsv --final_output taxaFinal.tsv
 
 # Dependencies
 
@@ -91,6 +111,15 @@ ASV_17546       Teleostei       Ophidiiformes   Ophidiidae      dropped dropped 
 ```
 
 A tab-delimited table, one row per unique query in the BLAST results, showing which Fishbase taxonomic levels were included, and which were dropped. It also shows the average BLAST identity of the species-hits included in the LCA, and the species that were included in the LCA. *IMPORTANT*: By default BLAST does not report queries with no hits. That means the output table of this script will not contain all queries.
+
+## Output when using calculateLCAWithFishbase_Claude_FAIReCompatible.py
+
+The output file contains the columns:
+'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species', 'OTU', 'numberOfUnq_BlastHits', '%ID', 'species_in_LCA', 'sources', and one column for each sample.
+
+The taxaRaw and taxaFinal files both contain the columns:
+'seq_id', 'dna_sequence', 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'specificEpithet', 'scientificName', 'scientificNameAuthorship', 'taxonRank', 'taxonID', 'taxonID_db', 'verbatimIdentification', 'accession_id', 'accession_id_ref_db', 'percent_match', 'percent_query_cover', 'confidence_score', and 'identificationRemarks'
+
 
 ## FAQ
 
