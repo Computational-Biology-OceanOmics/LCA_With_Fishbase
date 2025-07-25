@@ -161,7 +161,7 @@ class TestLCACalculator(unittest.TestCase):
         entries = [(95.0, "Gobius niger"), (94.5, "Gobius cobitis")]
         result = self.calculator.calculate_lca(entries)
         
-        self.assertEqual(result.percentage, 94.75)  # mean of 94.5 and 95.0
+        self.assertEqual(result.percentage, 95.0)  # CHANGE: should be the max now. 
         self.assertEqual(result.assignment, "dropped")
         self.assertEqual(result.included_taxa, {"Gobius niger", "Gobius cobitis"})
     

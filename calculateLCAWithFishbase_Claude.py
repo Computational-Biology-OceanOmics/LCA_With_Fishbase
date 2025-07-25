@@ -507,14 +507,16 @@ class LCACalculator:
                 filtered_taxa.add(taxon)
                 valid_percentages.append(percentage)
         
-        mean_percentage = statistics.mean(valid_percentages)
+        #mean_percentage = statistics.mean(valid_percentages)
+        max_percentage = max(valid_percentages)
         
         if len(filtered_taxa) == 1:
             assignment = list(filtered_taxa)[0]
         else:
             assignment = "dropped"
         
-        return LCAResult(mean_percentage, assignment, filtered_taxa)
+        # CHANGE: used to return mean_percentage here
+        return LCAResult(max_percentage, assignment, filtered_taxa)
 
 
 class BLASTLCAAnalyzer:

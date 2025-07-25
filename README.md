@@ -145,6 +145,10 @@ The script only works with domain, phylum, class, order, family, genus, species.
 Fishbase is nice in that it knows about many, but not all unaccepted names. If an unaccepted name made it into Fishbase the API returns the accepted version of this name along with the taxonomic lineage of the new, accepted name. We then use that name for the LCA. Neat, isn't it!  
 The script then checks whether the species is in WoRMS - lastly, your misspelled species name may be in the NCBI taxonomy.
 
+- I get an error ValueError: Wrong number of dimensions. values.ndim > ndim [2 > 1]
+
+There seems to be a strange bug with older versions of pyarrow and newer versions of pandas. Running `pip install pyarrow pandas -U` fixed it for me.
+
 - I have more questions!
 
 Please contact me at pbayer AT minderoo.org
