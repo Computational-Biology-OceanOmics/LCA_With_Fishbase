@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Automated tests for calculateLCAWithFishbase_Claude.py
+Automated tests for calculateLCAWithFishbase_Claude_FAIReCompatible.py
 
 This module contains comprehensive tests for the BLAST LCA Analysis Tool,
 covering all major components and edge cases.
@@ -14,7 +14,7 @@ from unittest.mock import Mock, patch, MagicMock
 import pandas as pd
 from collections import OrderedDict
 
-from calculateLCAWithFishbase_Claude import (
+from calculateLCAWithFishbase_Claude_FAIReCompatible import (
     Config, TaxonomicLineage, LCAResult, NCBITaxdumpParser,
     DatabaseManager, SpeciesNameCorrector, TaxonomicAssigner,
     LCACalculator, BLASTLCAAnalyzer
@@ -40,6 +40,8 @@ class TestTaxonomicLineage(unittest.TestCase):
     def test_taxonomic_lineage_creation(self):
         """Test creating and converting taxonomic lineage."""
         lineage = TaxonomicLineage(
+            domain="Eukaryota",
+            phylum="Chordata",
             class_name="Actinopterygii",
             order="Perciformes", 
             family="Gobiidae",
@@ -49,6 +51,8 @@ class TestTaxonomicLineage(unittest.TestCase):
         
         lineage_list = lineage.to_list()
         expected = [
+            ("D", "Eukaryota"),
+            ("P", "Chordata"),
             ("C", "Actinopterygii"),
             ("O", "Perciformes"),
             ("F", "Gobiidae"),
@@ -93,8 +97,8 @@ class TestNCBITaxdumpParser(unittest.TestCase):
         self.assertTrue(self.temp_dir.exists())
         self.assertEqual(len(self.parser.taxid_to_lineage), 0)
     
-    @patch('calculateLCAWithFishbase_Claude.urlretrieve')
-    @patch('calculateLCAWithFishbase_Claude.tarfile.open')
+    @patch('calculateLCAWithFishbase_Claude_FAIReCompatible.urlretrieve')
+    @patch('calculateLCAWithFishbase_Claude_FAIReCompatible.tarfile.open')
     def test_download_and_extract_taxdump(self, mock_tarfile, mock_urlretrieve):
         """Test downloading and extracting taxdump."""
         mock_tar = MagicMock()
@@ -182,7 +186,7 @@ class TestTaxonomicAssigner(unittest.TestCase):
         """Set up test fixtures."""
         # Mock Fishbase data
         self.fishbase_genera = {
-            "Gobius": ["Gobiidae", "Perciformes", "Actinopterygii"]
+            "Gobius": ["Gobiidae", "Perciformes", "Actinopterygii", "Unknown", "Unknown"]
         }
         self.fishbase_speccode = {
             123: "Gobius niger"
@@ -193,7 +197,7 @@ class TestTaxonomicAssigner(unittest.TestCase):
         
         # Mock WoRMS data
         self.worms_genera = {
-            "Pagrus": ["Sparidae", "Perciformes", "Actinopterygii"]
+            "Pagrus": ["Sparidae", "Perciformes", "Actinopterygii", "Chordata", "Eukaryota"]
         }
         self.worms_species = {"Pagrus pagrus"}
         
@@ -232,7 +236,7 @@ class TestTaxonomicAssigner(unittest.TestCase):
     def test_ncbi_fallback(self):
         """Test falling back to NCBI when not found in other databases."""
         elements = ["unknown", "genus", "species"]
-        mock_lineage = TaxonomicLineage("TestClass", "TestOrder", "TestFamily", "TestGenus", "TestSpecies")
+        mock_lineage = TaxonomicLineage("TestDomain", "TestPhylum", "TestClass", "TestOrder", "TestFamily", "TestGenus", "TestSpecies")
         self.db_manager.query_ncbi_taxonomy.return_value = mock_lineage
         
         result = self.assigner.find_species_info(elements, taxid="12345")
@@ -274,7 +278,7 @@ class TestBLASTLCAAnalyzer(unittest.TestCase):
         missing_file = self.temp_dir / "missing.txt"
         
         # Mock the assigner
-        mock_lineage = TaxonomicLineage("TestClass", "TestOrder", "TestFamily", "Gobius", "Gobius niger")
+        mock_lineage = TaxonomicLineage("TestDomain", "TestPhylum", "TestClass", "TestOrder", "TestFamily", "Gobius", "Gobius niger")
         self.analyzer.assigner = Mock()
         self.analyzer.assigner.find_species_info.return_value = ("Gobius", "niger", "fishbase", mock_lineage)
         
@@ -282,41 +286,48 @@ class TestBLASTLCAAnalyzer(unittest.TestCase):
         
         self.assertIn("ASV1", result)
         self.assertEqual(len(result["ASV1"]), 1)
-        source, pident, lineage = result["ASV1"][0]
+        source, pident, lineage, verbatim_label, accession_id, qcov, evalue, taxon_id = result["ASV1"][0]
         self.assertEqual(source, "fishbase")
         self.assertEqual(pident, 95.0)
     
     def test_calculate_lca_assignments(self):
         """Test LCA assignment calculation."""
+        # Create mock ASV table file
+        asv_table_content = "ASV\tSample1\tSample2\tASV_sequence\nASV1\t10\t5\tATCG\n"
+        asv_table_file = self.temp_dir / "asv_table.txt"
+        asv_table_file.write_text(asv_table_content)
+        
         # Create mock hits data
-        mock_lineage = TaxonomicLineage("Actinopterygii", "Perciformes", "Gobiidae", "Gobius", "Gobius niger")
+        mock_lineage = TaxonomicLineage("Eukaryota", "Chordata", "Actinopterygii", "Perciformes", "Gobiidae", "Gobius", "Gobius niger")
         asv_hits = {
-            "ASV1": [("fishbase", 95.0, mock_lineage)]
+            "ASV1": [("fishbase", 95.0, mock_lineage, "title", "acc123", "90", "1e-50", "12345")]
         }
         
-        results = self.analyzer.calculate_lca_assignments(asv_hits)
+        results, taxaRaw, taxaFinal = self.analyzer.calculate_lca_assignments(asv_hits, asv_table_file)
         
         self.assertEqual(len(results), 1)
         result = results[0]
-        self.assertEqual(result["ASV_name"], "ASV1")
-        self.assertEqual(result["Class"], "Actinopterygii")
-        self.assertEqual(result["Order"], "Perciformes")
-        self.assertEqual(result["Family"], "Gobiidae")
-        self.assertEqual(result["Genus"], "Gobius")
-        self.assertEqual(result["Species"], "Gobius niger")
+        self.assertEqual(result["OTU"], "ASV1")
+        self.assertEqual(result["class"], "Actinopterygii")
+        self.assertEqual(result["order"], "Perciformes")
+        self.assertEqual(result["family"], "Gobiidae")
+        self.assertEqual(result["genus"], "Gobius")
+        self.assertEqual(result["species"], "Gobius niger")
     
     def test_write_results(self):
         """Test writing results to file."""
         results = [{
-            'ASV_name': 'ASV1',
-            'Class': 'Actinopterygii',
-            'Order': 'Perciformes',
-            'Family': 'Gobiidae',
-            'Genus': 'Gobius',
-            'Species': 'Gobius niger',
-            'PercentageID': '95.00',
-            'Species_In_LCA': 'Gobius niger',
-            'Sources': 'fishbase'
+            'OTU': 'ASV1',
+            'domain': 'Eukaryota',
+            'phylum': 'Chordata',
+            'class': 'Actinopterygii',
+            'order': 'Perciformes',
+            'family': 'Gobiidae',
+            'genus': 'Gobius',
+            'species': 'Gobius niger',
+            '%ID': 95.00,
+            'species_in_LCA': 'Gobius niger',
+            'sources': 'fishbase'
         }]
         
         output_file = self.temp_dir / "output.txt"
