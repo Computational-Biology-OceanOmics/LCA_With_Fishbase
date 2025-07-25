@@ -54,6 +54,15 @@ I've written an initial prototype (minus the NCBI Taxonomy!!!) of this code and 
 
      python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
+# Tests
+
+are added in 
+
+    python -m unittest test_calculateLCAWithFishbase_Claude.py
+
+    python -m unittest test_calculateLCAWithFishbase_Claude_FAIReCompatible.py
+
+
 # *IMPORTANT*
 
 - The BLAST results need the taxonomy ID. Make sure that the taxonomy ID is included in the BLAST output and not just N/A. 
