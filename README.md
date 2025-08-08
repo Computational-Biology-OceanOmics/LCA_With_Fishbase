@@ -149,6 +149,12 @@ The script then checks whether the species is in WoRMS - lastly, your misspelled
 
 There seems to be a strange bug with older versions of pyarrow and newer versions of pandas. Running `pip install pyarrow pandas -U` fixed it for me.
 
+- I have checked my missing.csv results and realised that I have a species that is neither on Fishbase, WoRMS, or NCBI Taxonomy. What can I do?
+
+The easiest solution is to manually add this species to the worms_species.txt file following the WoRMS taxonomy. Here's an example for a new fish species:
+
+    Melanophorichthys penicillus    Melanophorichthys       Animalia        Chordata        Teleostei       Perciformes     Gobiesocidae    Melanophorichthys       penicillus
+
 - I have more questions!
 
 Please contact me at pbayer AT minderoo.org
