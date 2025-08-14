@@ -1,8 +1,8 @@
 ```
  🐟 Fishbase ────┐
-                 ├──► LCA Classification
+                  ├──► LCA Classification
  🌊    WoRMS ────┤
-                 │
+                  │
  🧬     NCBI ────┘
 ```
 
