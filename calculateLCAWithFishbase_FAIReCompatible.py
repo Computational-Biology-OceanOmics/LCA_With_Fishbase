@@ -22,17 +22,37 @@ from urllib.error import URLError
 from urllib.request import urlretrieve
 import pandas as pd
 
+
 @dataclass
 class Config:
     """Configuration settings for the LCA analysis."""
+
     DEFAULT_CUTOFF: float = 1.0
     DEFAULT_COVER_MIN: float = 90.0
     DEFAULT_PIDENT_CUTOFF: float = 90.0
     BLAST_COLUMNS = [
-        'qseqid', 'sseqid', 'staxids', 'sscinames', 'scomnames', 'sskingdoms',
-        'pident', 'length', 'qlen', 'slen', 'mismatch', 'gapopen', 'gaps',
-        'qstart', 'qend', 'sstart', 'send', 'stitle', 'evalue', 'bitscore',
-        'qcovs', 'qcovhsp'
+        "qseqid",
+        "sseqid",
+        "staxids",
+        "sscinames",
+        "scomnames",
+        "sskingdoms",
+        "pident",
+        "length",
+        "qlen",
+        "slen",
+        "mismatch",
+        "gapopen",
+        "gaps",
+        "qstart",
+        "qend",
+        "sstart",
+        "send",
+        "stitle",
+        "evalue",
+        "bitscore",
+        "qcovs",
+        "qcovhsp",
     ]
     PIDENT_COLUMN_INDEX: int = 6
     COV_COLUMN_INDEX: int = 20
@@ -42,6 +62,7 @@ class Config:
 @dataclass
 class TaxonomicLineage:
     """Represents a complete taxonomic lineage."""
+
     domain: str
     phylum: str
     class_name: str
@@ -59,13 +80,14 @@ class TaxonomicLineage:
             ("O", self.order),
             ("F", self.family),
             ("G", self.genus),
-            ("S", self.species)
+            ("S", self.species),
         ]
 
 
 @dataclass
 class LCAResult:
     """Result of LCA calculation."""
+
     percentage: float
     coverage: float
     assignment: str
@@ -108,7 +130,7 @@ class NCBITaxdumpParser:
         self.logger.info("Extracting taxdump...")
         taxdump_dir.mkdir(exist_ok=True)
 
-        with tarfile.open(taxdump_tar, 'r:gz') as tar:
+        with tarfile.open(taxdump_tar, "r:gz") as tar:
             tar.extractall(taxdump_dir)
 
         self.logger.info(f"Extracted taxdump to: {taxdump_dir}")
@@ -118,9 +140,9 @@ class NCBITaxdumpParser:
         """Parse nodes.dmp file to build taxonomy tree structure."""
         self.logger.info("Parsing nodes.dmp...")
 
-        with open(nodes_file, 'r') as f:
+        with open(nodes_file, "r") as f:
             for line in f:
-                parts = [p.strip() for p in line.split('\t|\t')]
+                parts = [p.strip() for p in line.split("\t|\t")]
                 if len(parts) >= 3:
                     taxid = parts[0]
                     parent_taxid = parts[1]
@@ -135,13 +157,13 @@ class NCBITaxdumpParser:
         """Parse names.dmp file to get scientific names."""
         self.logger.info("Parsing names.dmp...")
 
-        with open(names_file, 'r') as f:
+        with open(names_file, "r") as f:
             for line in f:
-                parts = [p.strip() for p in line.split('\t|\t')]
+                parts = [p.strip() for p in line.split("\t|\t")]
                 if len(parts) >= 4:
                     taxid = parts[0]
                     name = parts[1]
-                    name_class = parts[3].rstrip('\t|')
+                    name_class = parts[3].rstrip("\t|")
 
                     if name_class == "scientific name":
                         self.taxid_to_name[taxid] = name
@@ -150,7 +172,7 @@ class NCBITaxdumpParser:
 
     def build_lineage(self, taxid: str) -> Optional[TaxonomicLineage]:
         """Build complete taxonomic lineage for a given taxid."""
-        if not taxid or taxid == 'N/A' or taxid not in self.taxid_to_parent:
+        if not taxid or taxid == "N/A" or taxid not in self.taxid_to_parent:
             return None
 
         # Check cache first
@@ -158,22 +180,25 @@ class NCBITaxdumpParser:
             return self.taxid_to_lineage[taxid]
 
         lineage_data = {
-            'domain': None,
-            'phylum': None,
-            'class': None,
-            'order': None,
-            'family': None,
-            'genus': None,
-            'species': None
+            "domain": None,
+            "phylum": None,
+            "class": None,
+            "order": None,
+            "family": None,
+            "genus": None,
+            "species": None,
         }
 
         current_taxid = taxid
         visited = set()  # Prevent infinite loops
 
-        while current_taxid and current_taxid != '1' and current_taxid not in visited:
+        while current_taxid and current_taxid != "1" and current_taxid not in visited:
             visited.add(current_taxid)
 
-            if current_taxid in self.taxid_to_rank and current_taxid in self.taxid_to_name:
+            if (
+                current_taxid in self.taxid_to_rank
+                and current_taxid in self.taxid_to_name
+            ):
                 rank = self.taxid_to_rank[current_taxid]
                 name = self.taxid_to_name[current_taxid]
 
@@ -187,13 +212,13 @@ class NCBITaxdumpParser:
                 break
 
         lineage = TaxonomicLineage(
-            domain=lineage_data['domain'] or 'Unknown',
-            phylum=lineage_data['phylum'] or 'Unknown',
-            class_name=lineage_data['class'] or 'Unknown',
-            order=lineage_data['order'] or 'Unknown',
-            family=lineage_data['family'] or 'Unknown',
-            genus=lineage_data['genus'] or 'Unknown',
-            species=lineage_data['species'] or self.taxid_to_name.get(taxid, 'Unknown')
+            domain=lineage_data["domain"] or "Unknown",
+            phylum=lineage_data["phylum"] or "Unknown",
+            class_name=lineage_data["class"] or "Unknown",
+            order=lineage_data["order"] or "Unknown",
+            family=lineage_data["family"] or "Unknown",
+            genus=lineage_data["genus"] or "Unknown",
+            species=lineage_data["species"] or self.taxid_to_name.get(taxid, "Unknown"),
         )
 
         self.taxid_to_lineage[taxid] = lineage
@@ -239,58 +264,64 @@ class DatabaseManager:
             self.logger.error(f"Failed to download {url}: {e}")
             raise
 
-    def load_fishbase_data(self) -> Tuple[Dict[str, List[str]], Dict[str, str], Dict[str, str]]:
+    def load_fishbase_data(
+        self,
+    ) -> Tuple[Dict[str, List[str]], Dict[str, str], Dict[str, str]]:
         """Load and process Fishbase data."""
         self.logger.info("Loading Fishbase data...")
 
         species_df = self._download_with_cache(
             "https://fishbase.ropensci.org/fishbase/species.parquet",
-            "fishbase_species.parquet"
+            "fishbase_species.parquet",
         )
 
         families_df = self._download_with_cache(
             "https://fishbase.ropensci.org/fishbase/families.parquet",
-            "fishbase_families.parquet"
+            "fishbase_families.parquet",
         )
 
         synonyms_df = self._download_with_cache(
             "https://fishbase.ropensci.org/fishbase/synonyms.parquet",
-            "fishbase_synonyms.parquet"
+            "fishbase_synonyms.parquet",
         )
 
         self.logger.debug(f"Species columns: {species_df.columns.tolist()}")
         self.logger.debug(f"Families columns: {families_df.columns.tolist()}")
 
-        merged = species_df.merge(families_df, on='FamCode')
-        merged = merged.rename(columns = {'Species_x': 'Species'})
+        merged = species_df.merge(families_df, on="FamCode")
+        merged = merged.rename(columns={"Species_x": "Species"})
 
         merged = merged[
-            ['SpecCode', 'Species', 'Genus', 'Family', 'Order', 'Class']
+            ["SpecCode", "Species", "Genus", "Family", "Order", "Class"]
         ].copy()
 
-        merged['full_species'] = merged['Genus'] + ' ' + merged['Species']
+        merged["full_species"] = merged["Genus"] + " " + merged["Species"]
 
         # Key: genus. value: the whole lineage
         genera_to_lineage = (
             merged.assign(Phylum="Unknown", Domain="Unknown")
-            .groupby('Genus')[['Family', 'Order', 'Class', 'Phylum', 'Domain']]
+            .groupby("Genus")[["Family", "Order", "Class", "Phylum", "Domain"]]
             .first()
             .apply(lambda x: x.tolist(), axis=1)
             .to_dict()
         )
 
-        speccode_to_species = merged.set_index('SpecCode')['full_species'].to_dict()
+        speccode_to_species = merged.set_index("SpecCode")["full_species"].to_dict()
 
         # Key: Synonym, value: SpecCode of the 'real' species
-        synonyms_to_speccode = dict(zip(
-            synonyms_df['SynGenus'] + ' ' + synonyms_df['SynSpecies'],
-            synonyms_df['SpecCode']
-        ))
+        synonyms_to_speccode = dict(
+            zip(
+                synonyms_df["SynGenus"] + " " + synonyms_df["SynSpecies"],
+                synonyms_df["SpecCode"],
+            )
+        )
 
         self.logger.info(f"Loaded {len(genera_to_lineage)} Fishbase genera")
         return genera_to_lineage, speccode_to_species, synonyms_to_speccode
 
-    def load_worms_data(self, worms_file: Path) -> Tuple[Dict[str, List[str]], Set[str]]:
+    def load_worms_data(
+        self, worms_file: Path
+    ) -> Tuple[Dict[str, List[str]], Set[str]]:
         """Load and process WoRMS data."""
         if not worms_file.exists():
             self.logger.warning(f"WoRMS file not found: {worms_file}")
@@ -301,19 +332,32 @@ class DatabaseManager:
         try:
             worms_df = pd.read_csv(
                 worms_file,
-                sep='\t',
+                sep="\t",
                 header=None,
-                names=['Species', 'Genus', 'Kingdom', 'Phylum', 'Class', 'Order', 'Family', 'g', 'trash', 'sp']
+                names=[
+                    "Species",
+                    "Genus",
+                    "Kingdom",
+                    "Phylum",
+                    "Class",
+                    "Order",
+                    "Family",
+                    "g",
+                    "trash",
+                    "sp",
+                ],
             )
 
             genera_to_lineage = (
-                worms_df.groupby('Genus')[['Family', 'Order', 'Class', 'Phylum', 'Domain']]
+                worms_df.groupby("Genus")[
+                    ["Family", "Order", "Class", "Phylum", "Domain"]
+                ]
                 .first()
                 .apply(lambda x: x.tolist(), axis=1)
                 .to_dict()
             )
 
-            species_set = set(worms_df['Species'])
+            species_set = set(worms_df["Species"])
 
             self.logger.info(f"Loaded {len(genera_to_lineage)} WoRMS genera")
             return genera_to_lineage, species_set
@@ -349,7 +393,7 @@ class SpeciesNameCorrector:
         else:
             # Default corrections - should be moved to config file
             self.corrections = {
-                'Petroschmidtia albonotatus': 'Petroschmidtia albonotata'
+                "Petroschmidtia albonotatus": "Petroschmidtia albonotata"
             }
 
     def _load_corrections(self, corrections_file: Path):
@@ -371,9 +415,15 @@ class SpeciesNameCorrector:
 class TaxonomicAssigner:
     """Handles taxonomic assignment logic."""
 
-    def __init__(self, fishbase_genera: Dict, fishbase_speccode: Dict,
-                 fishbase_synonyms: Dict, worms_genera: Dict, worms_species: Set,
-                 db_manager: DatabaseManager):
+    def __init__(
+        self,
+        fishbase_genera: Dict,
+        fishbase_speccode: Dict,
+        fishbase_synonyms: Dict,
+        worms_genera: Dict,
+        worms_species: Set,
+        db_manager: DatabaseManager,
+    ):
         self.fishbase_genera = fishbase_genera
         self.fishbase_speccode = fishbase_speccode
         self.fishbase_synonyms = fishbase_synonyms
@@ -382,7 +432,9 @@ class TaxonomicAssigner:
         self.db_manager = db_manager
         self.logger = logging.getLogger(__name__)
 
-    def find_species_info(self, line_elements: List[str], taxid: Optional[str] = None) -> Optional[Tuple[str, str, str, TaxonomicLineage]]:
+    def find_species_info(
+        self, line_elements: List[str], taxid: Optional[str] = None
+    ) -> Optional[Tuple[str, str, str, TaxonomicLineage]]:
         """
         Find species information from BLAST line elements.
 
@@ -398,12 +450,14 @@ class TaxonomicAssigner:
         genus, species, lineage = self._search_fishbase(line_elements)
         if genus:
             # Try to get the domain/phylum info from worms
-            genus_worms, species_worms, lineage_worms = self._search_worms(line_elements)
+            genus_worms, species_worms, lineage_worms = self._search_worms(
+                line_elements
+            )
             if genus_worms:
                 # add worms phylum and domain
                 lineage.domain = lineage_worms.domain
                 lineage.phylum = lineage_worms.phylum
-                return genus, species, 'fishbase', lineage
+                return genus, species, "fishbase", lineage
 
             # Try to get the domain/phylum info from ncbi
             elif taxid:
@@ -411,17 +465,17 @@ class TaxonomicAssigner:
                 if lineage_ncbi:
                     lineage.domain = lineage_ncbi.domain
                     lineage.phylum = lineage_ncbi.phylum
-                    return genus, species, 'fishbase', lineage
+                    return genus, species, "fishbase", lineage
                 else:
-                    return genus, species, 'fishbase', lineage
+                    return genus, species, "fishbase", lineage
 
             else:
-                return genus, species, 'fishbase', lineage
+                return genus, species, "fishbase", lineage
 
         # then WoRMs,
         genus, species, lineage = self._search_worms(line_elements)
         if genus:
-            return genus, species, 'worms', lineage
+            return genus, species, "worms", lineage
 
         # and lastly, NCBI Taxonomy via the taxid
         if taxid:
@@ -429,11 +483,13 @@ class TaxonomicAssigner:
             if lineage:
                 genus = lineage.genus
                 species = lineage.species
-                return genus, species, 'ncbi', lineage
+                return genus, species, "ncbi", lineage
 
         return None
 
-    def _search_fishbase(self, elements: List[str]) -> Tuple[Optional[str], Optional[str], Optional[TaxonomicLineage]]:
+    def _search_fishbase(
+        self, elements: List[str]
+    ) -> Tuple[Optional[str], Optional[str], Optional[TaxonomicLineage]]:
         """Search in Fishbase data."""
         # Direct genus match
         for i, element in enumerate(elements[:-1]):
@@ -449,7 +505,7 @@ class TaxonomicAssigner:
                     order=order,
                     family=family,
                     genus=genus,
-                    species=f"{genus} {species_part}"
+                    species=f"{genus} {species_part}",
                 )
                 return genus, species_part, lineage
 
@@ -461,8 +517,10 @@ class TaxonomicAssigner:
                 speccode = self.fishbase_synonyms[potential_species]
                 if speccode in self.fishbase_speccode:
                     correct_species = self.fishbase_speccode[speccode]
-                    genus, species_part = correct_species.split(' ', 1)
-                    family, order, class_name, phylum, domain = self.fishbase_genera[genus]
+                    genus, species_part = correct_species.split(" ", 1)
+                    family, order, class_name, phylum, domain = self.fishbase_genera[
+                        genus
+                    ]
 
                     lineage = TaxonomicLineage(
                         domain=domain,
@@ -471,7 +529,7 @@ class TaxonomicAssigner:
                         order=order,
                         family=family,
                         genus=genus,
-                        species=correct_species
+                        species=correct_species,
                     )
                     return genus, species_part, lineage
 
@@ -481,7 +539,9 @@ class TaxonomicAssigner:
         """Search in NCBI Taxonomy database."""
         return self.db_manager.query_ncbi_taxonomy(taxid)
 
-    def _search_worms(self, elements: List[str]) -> Tuple[Optional[str], Optional[str], Optional[TaxonomicLineage]]:
+    def _search_worms(
+        self, elements: List[str]
+    ) -> Tuple[Optional[str], Optional[str], Optional[TaxonomicLineage]]:
         """Search in WoRMS data."""
         # I BELIEVE that WoRMS automatically has the correct lineage
         # even for synonyms. I may be wrong about that.
@@ -498,7 +558,7 @@ class TaxonomicAssigner:
                     order=order,
                     family=family,
                     genus=genus,
-                    species=f"{genus} {species_part}"
+                    species=f"{genus} {species_part}",
                 )
                 return genus, species_part, lineage
 
@@ -515,10 +575,10 @@ class LCACalculator:
     def calculate_lca(self, entries: List[Tuple[float, str, float]]) -> LCAResult:
         """
         Calculate LCA from a list of (percentage, taxon, query_cov) tuples.
-        
+
         Args:
             entries: List of (percentage_identity, taxon_name, query_cov) tuples
-            
+
         Returns:
             LCAResult with percentage, coverage, assignment, and included taxa
         """
@@ -527,30 +587,33 @@ class LCACalculator:
 
         # Optionally adjust the bp identity by the coverage
         if self.normalise_identity:
-            entries = [((entry[0]/100)*(entry[2]/100)*100, entry[1], entry[2]) for entry in entries]
-        
+            entries = [
+                ((entry[0] / 100) * (entry[2] / 100) * 100, entry[1], entry[2])
+                for entry in entries
+            ]
+
         sorted_entries = sorted(entries)
         top_percentage = sorted_entries[-1][0]
         percentage_threshold = top_percentage - self.cutoff
-        
+
         filtered_taxa = set()
         valid_percentages = []
         valid_coverages = []
-        
+
         for adjusted_percentage, taxon, coverage in sorted_entries:
             if adjusted_percentage >= percentage_threshold:
                 filtered_taxa.add(taxon)
                 valid_percentages.append(adjusted_percentage)
                 valid_coverages.append(coverage)
-        
+
         max_percentage = max(valid_percentages)
         max_coverage = max(valid_coverages)
-        
+
         if len(filtered_taxa) == 1:
             assignment = list(filtered_taxa)[0]
         else:
             assignment = "dropped"
-        
+
         return LCAResult(max_percentage, max_coverage, assignment, filtered_taxa)
 
 
@@ -568,17 +631,19 @@ class BLASTLCAAnalyzer:
         """Setup logging configuration."""
         logging.basicConfig(
             level=getattr(logging, log_level.upper()),
-            format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+            format="%(asctime)s - %(name)s - %(levelname)s - %(message)s",
             handlers=[
                 logging.StreamHandler(sys.stdout),
-                logging.FileHandler('blast_lca.log')
-            ]
+                logging.FileHandler("blast_lca.log"),
+            ],
         )
 
     def load_databases(self, worms_file: Optional[Path] = None):
         """Load all required databases."""
         # Load Fishbase data
-        fishbase_genera, fishbase_speccode, fishbase_synonyms = self.db_manager.load_fishbase_data()
+        fishbase_genera, fishbase_speccode, fishbase_synonyms = (
+            self.db_manager.load_fishbase_data()
+        )
 
         # Load WoRMS data
         worms_genera, worms_species = self.db_manager.load_worms_data(
@@ -588,12 +653,21 @@ class BLASTLCAAnalyzer:
         self.db_manager.load_ncbi_taxdump()
 
         self.assigner = TaxonomicAssigner(
-            fishbase_genera, fishbase_speccode, fishbase_synonyms,
-            worms_genera, worms_species, self.db_manager
+            fishbase_genera,
+            fishbase_speccode,
+            fishbase_synonyms,
+            worms_genera,
+            worms_species,
+            self.db_manager,
         )
 
-    def process_blast_file(self, input_file: Path, pident_cutoff: float, coverage_cutoff: float,
-                          missing_file: Path) -> Dict[str, List]:
+    def process_blast_file(
+        self,
+        input_file: Path,
+        pident_cutoff: float,
+        coverage_cutoff: float,
+        missing_file: Path,
+    ) -> Dict[str, List]:
         """Process BLAST results file."""
         asv_hits = OrderedDict()
         missing_count = Counter()
@@ -601,12 +675,15 @@ class BLASTLCAAnalyzer:
         self.logger.info(f"Processing BLAST file: {input_file}")
 
         try:
-            with open(input_file, 'r') as infile, open(missing_file, 'w') as missing_out:
+            with (
+                open(input_file, "r") as infile,
+                open(missing_file, "w") as missing_out,
+            ):
                 for line_num, line in enumerate(infile, 1):
                     try:
                         # fix the bad species names
                         corrected_line = self.corrector.correct_line(line.rstrip())
-                        elements = corrected_line.split('\t')
+                        elements = corrected_line.split("\t")
 
                         taxon_id = elements[2]
                         evalue = elements[18]
@@ -617,22 +694,30 @@ class BLASTLCAAnalyzer:
                         #  do we have the right number of columns?
                         # If not, that's a user error. Quit
                         if len(elements) < len(self.config.BLAST_COLUMNS):
-                            self.logger.warning(f"Line {line_num}: Insufficient columns")
+                            self.logger.warning(
+                                f"Line {line_num}: Insufficient columns"
+                            )
                             continue
 
                         try:
                             pident = float(elements[self.config.PIDENT_COLUMN_INDEX])
                         except (ValueError, IndexError):
-                            self.logger.warning(f"Line {line_num}: Invalid pident value")
+                            self.logger.warning(
+                                f"Line {line_num}: Invalid pident value"
+                            )
                             continue
 
                         if pident < pident_cutoff:
                             continue
 
-                        try: 
-                            query_coverage = float(elements[self.config.COV_COLUMN_INDEX])
+                        try:
+                            query_coverage = float(
+                                elements[self.config.COV_COLUMN_INDEX]
+                            )
                         except (ValueError, IndexError):
-                            self.logger.warning(f"Line {line_num}: Invalid query coverage value {elements[self.config.COV_COLUMN_INDEX]}")
+                            self.logger.warning(
+                                f"Line {line_num}: Invalid query coverage value {elements[self.config.COV_COLUMN_INDEX]}"
+                            )
                             continue
 
                         if query_coverage < coverage_cutoff:
@@ -640,16 +725,18 @@ class BLASTLCAAnalyzer:
 
                         # Split for species name parsing
                         # BOLD uses | as delimiter so let's also split by that
-                        line_elements = corrected_line.replace('|', ' ').split()
+                        line_elements = corrected_line.replace("|", " ").split()
                         asv_name = line_elements[0]
 
                         taxid = None
-                        if len(elements) > 2 and elements[2] != 'N/A':
+                        if len(elements) > 2 and elements[2] != "N/A":
                             # Sometimes you get multiple taxids
-                            taxids = elements[2].split(';')
+                            taxids = elements[2].split(";")
                             taxid = taxids[0] if taxids else None
 
-                        species_info = self.assigner.find_species_info(line_elements, taxid)
+                        species_info = self.assigner.find_species_info(
+                            line_elements, taxid
+                        )
 
                         if species_info is None:
                             missing_out.write(line)
@@ -658,7 +745,17 @@ class BLASTLCAAnalyzer:
 
                         genus, species_part, source, lineage = species_info
 
-                        hit_info = (source, pident, lineage, verbatim_label, accession_id, qcov, evalue, taxon_id, query_coverage)
+                        hit_info = (
+                            source,
+                            pident,
+                            lineage,
+                            verbatim_label,
+                            accession_id,
+                            qcov,
+                            evalue,
+                            taxon_id,
+                            query_coverage,
+                        )
                         if asv_name not in asv_hits:
                             asv_hits[asv_name] = [hit_info]
                         else:
@@ -679,7 +776,9 @@ class BLASTLCAAnalyzer:
         if missing_count:
             self.logger.info(f"Missing species for {len(missing_count)} ASVs")
         else:
-            self.logger.info("Found species names or taxonomy IDs in *all* lines. The missing file is empty.")
+            self.logger.info(
+                "Found species names or taxonomy IDs in *all* lines. The missing file is empty."
+            )
 
         return asv_hits
 
@@ -691,7 +790,7 @@ class BLASTLCAAnalyzer:
         counts = {}
         asv_sequences = {}
 
-        with open(asv_table, 'r') as in_table:
+        with open(asv_table, "r") as in_table:
             header = True
             for line in in_table:
                 split_line = line.split("\t")
@@ -706,10 +805,10 @@ class BLASTLCAAnalyzer:
                     asv_sequences[asv_name] = asv_sequence.rstrip()
                     split_line.pop(0)
                     split_line.pop(-1)
-                    i=0
+                    i = 0
                     for sam in samples:
                         counts[asv_name][sam] = split_line[i]
-                        i+=1
+                        i += 1
                 header = False
 
         for asv_name, hits in asv_hits.items():
@@ -723,7 +822,17 @@ class BLASTLCAAnalyzer:
             sources = set()
 
             i = 0
-            for source, pident, lineage, verbatim_label, accession_id, qcov, evalue, taxon_id, query_coverage in hits:
+            for (
+                source,
+                pident,
+                lineage,
+                verbatim_label,
+                accession_id,
+                qcov,
+                evalue,
+                taxon_id,
+                query_coverage,
+            ) in hits:
                 sources.add(source)
                 lineage_list = lineage.to_list()
                 if i == 0:
@@ -764,7 +873,7 @@ class BLASTLCAAnalyzer:
                         domain_hits.append((pident, name, query_coverage))
                         domain = name
 
-                if (i < 10): # This is to prevent the taxaRaw file from getting too big
+                if i < 10:  # This is to prevent the taxaRaw file from getting too big
                     verbatim_split = verbatim_label.split("authority=(")
                     try:
                         author = verbatim_split[1].split(")] [")[0]
@@ -777,30 +886,32 @@ class BLASTLCAAnalyzer:
                     else:
                         taxon_rank = "species"
 
-                    taxaRaw.append({
-                        'seq_id': asv_name,
-                        'dna_sequence': dna_seq,
-                        'domain': domain,
-                        'phylum': phylum,
-                        'class': class_name,
-                        'order': order,
-                        'family': family,
-                        'genus': genus,
-                        'specificEpithet': specific_epithet,
-                        'scientificName': species,
-                        'scientificNameAuthorship': author,
-                        'taxonRank': taxon_rank,
-                        'taxonID': taxon_id,
-                        'taxonID_db': source,
-                        'verbatimIdentification': verbatim_label,
-                        'accession_id': accession_id,
-                        'accession_id_ref_db': source,
-                        'percent_match': pident,
-                        'percent_query_cover': qcov,
-                        'confidence_score': evalue,
-                        'identificationRemarks': "The Lowest Common Ancestor script used is found here https://github.com/Computational-Biology-OceanOmics/LCA_With_Fishbase",
-                        'length': str(len(dna_seq))
-                    })
+                    taxaRaw.append(
+                        {
+                            "seq_id": asv_name,
+                            "dna_sequence": dna_seq,
+                            "domain": domain,
+                            "phylum": phylum,
+                            "class": class_name,
+                            "order": order,
+                            "family": family,
+                            "genus": genus,
+                            "specificEpithet": specific_epithet,
+                            "scientificName": species,
+                            "scientificNameAuthorship": author,
+                            "taxonRank": taxon_rank,
+                            "taxonID": taxon_id,
+                            "taxonID_db": source,
+                            "verbatimIdentification": verbatim_label,
+                            "accession_id": accession_id,
+                            "accession_id_ref_db": source,
+                            "percent_match": pident,
+                            "percent_query_cover": qcov,
+                            "confidence_score": evalue,
+                            "identificationRemarks": "The Lowest Common Ancestor script used is found here https://github.com/Computational-Biology-OceanOmics/LCA_With_Fishbase",
+                            "length": str(len(dna_seq)),
+                        }
+                    )
                 i += 1
 
             # Calculate LCA at each level
@@ -813,20 +924,20 @@ class BLASTLCAAnalyzer:
             domain_lca = self.lca_calculator.calculate_lca(domain_hits)
 
             new_row = {
-                'domain': domain_lca.assignment,
-                'phylum': phylum_lca.assignment,
-                'class': class_lca.assignment,
-                'order': order_lca.assignment,
-                'family': family_lca.assignment,
-                'genus': genus_lca.assignment,
-                'species': species_lca.assignment,
-                'OTU': asv_name,
-                'length': str(len(dna_seq)),
-                'numberOfUnq_BlastHits': i,
-                '%ID': top_pident,
-                'queryCoverage': top_qcov,
-                'species_in_LCA': ", ".join(species_lca.included_taxa),
-                'sources': ", ".join(sources)
+                "domain": domain_lca.assignment,
+                "phylum": phylum_lca.assignment,
+                "class": class_lca.assignment,
+                "order": order_lca.assignment,
+                "family": family_lca.assignment,
+                "genus": genus_lca.assignment,
+                "species": species_lca.assignment,
+                "OTU": asv_name,
+                "length": str(len(dna_seq)),
+                "numberOfUnq_BlastHits": i,
+                "%ID": top_pident,
+                "queryCoverage": top_qcov,
+                "species_in_LCA": ", ".join(species_lca.included_taxa),
+                "sources": ", ".join(sources),
             }
 
             try:
@@ -840,9 +951,14 @@ class BLASTLCAAnalyzer:
                     if family_lca.assignment == "dropped":
                         if order_lca.assignment == "dropped":
                             if class_lca.assignment == "dropped":
-                                if phylum_lca.assignment == "dropped" or phylum_lca.assignment == "Unknown":
+                                if (
+                                    phylum_lca.assignment == "dropped"
+                                    or phylum_lca.assignment == "Unknown"
+                                ):
                                     if domain_lca.assignment == "dropped":
-                                        taxon_rank = "not applicable: domain level dropped"
+                                        taxon_rank = (
+                                            "not applicable: domain level dropped"
+                                        )
                                     elif domain_lca.assignment == "Unknown":
                                         taxon_rank = "not applicable: phylum and kingdom info missing"
                                     else:
@@ -871,43 +987,45 @@ class BLASTLCAAnalyzer:
             except KeyError:
                 dna_seq = "not applicable"
 
-            taxaFinal.append({
-                'seq_id': asv_name,
-                'dna_sequence': dna_seq,
-                'domain': domain_lca.assignment,
-                'phylum': phylum_lca.assignment,
-                'class': class_lca.assignment,
-                'order': order_lca.assignment,
-                'family': family_lca.assignment,
-                'genus': genus_lca.assignment,
-                'specificEpithet': specific_epithet,
-                'scientificName': species_lca.assignment,
-                'scientificNameAuthorship': author,
-                'taxonRank': taxon_rank,
-                'taxonID': top_taxon_id,
-                'taxonID_db': ", ".join(sources),
-                'verbatimIdentification': top_verbatim_label,
-                'accession_id': top_accession_id,
-                'accession_id_ref_db': ", ".join(sources),
-                'percent_match': top_pident,
-                'percent_query_cover': top_qcov,
-                'confidence_score': top_evalue,
-                'identificationRemarks': "The Lowest Common Ancestor script used is found here https://github.com/Computational-Biology-OceanOmics/LCA_With_Fishbase",
-                'length': str(len(dna_seq))
-            })
+            taxaFinal.append(
+                {
+                    "seq_id": asv_name,
+                    "dna_sequence": dna_seq,
+                    "domain": domain_lca.assignment,
+                    "phylum": phylum_lca.assignment,
+                    "class": class_lca.assignment,
+                    "order": order_lca.assignment,
+                    "family": family_lca.assignment,
+                    "genus": genus_lca.assignment,
+                    "specificEpithet": specific_epithet,
+                    "scientificName": species_lca.assignment,
+                    "scientificNameAuthorship": author,
+                    "taxonRank": taxon_rank,
+                    "taxonID": top_taxon_id,
+                    "taxonID_db": ", ".join(sources),
+                    "verbatimIdentification": top_verbatim_label,
+                    "accession_id": top_accession_id,
+                    "accession_id_ref_db": ", ".join(sources),
+                    "percent_match": top_pident,
+                    "percent_query_cover": top_qcov,
+                    "confidence_score": top_evalue,
+                    "identificationRemarks": "The Lowest Common Ancestor script used is found here https://github.com/Computational-Biology-OceanOmics/LCA_With_Fishbase",
+                    "length": str(len(dna_seq)),
+                }
+            )
 
         return results, taxaRaw, taxaFinal
 
     def write_results(self, results: List[Dict], output_file: Path):
         """Write results to output file."""
         try:
-            with open(output_file, 'w') as out:
+            with open(output_file, "w") as out:
                 header = results[0].keys()
-                out.write('\t'.join(header) + '\n')
+                out.write("\t".join(header) + "\n")
 
                 for result in results:
                     row = [str(result[col]) for col in header]
-                    out.write('\t'.join(row) + '\n')
+                    out.write("\t".join(row) + "\n")
 
             self.logger.info(f"Results written to: {output_file}")
 
@@ -915,10 +1033,20 @@ class BLASTLCAAnalyzer:
             self.logger.error(f"Error writing results: {e}")
             raise
 
-    def run_analysis(self, input_file: Path, asv_table: Path,
-                    output_file: Path, raw_output: Path, final_output: Path,
-                    cutoff: float, pident_cutoff: float, cover_minimum: float,
-                    missing_file: Path, worms_file: Optional[Path] = None, normalise_identity: bool = True):
+    def run_analysis(
+        self,
+        input_file: Path,
+        asv_table: Path,
+        output_file: Path,
+        raw_output: Path,
+        final_output: Path,
+        cutoff: float,
+        pident_cutoff: float,
+        cover_minimum: float,
+        missing_file: Path,
+        worms_file: Optional[Path] = None,
+        normalise_identity: bool = True,
+    ):
         """Run the complete analysis pipeline."""
         self.logger.info("Starting BLAST LCA analysis")
 
@@ -927,13 +1055,17 @@ class BLASTLCAAnalyzer:
 
         self.load_databases(worms_file)
 
-        asv_hits = self.process_blast_file(input_file, pident_cutoff, cover_minimum, missing_file)
+        asv_hits = self.process_blast_file(
+            input_file, pident_cutoff, cover_minimum, missing_file
+        )
 
         if not asv_hits:
             self.logger.warning("No valid hits found in input file")
             return
 
-        results, taxaRaw, taxaFinal = self.calculate_lca_assignments(asv_hits, asv_table)
+        results, taxaRaw, taxaFinal = self.calculate_lca_assignments(
+            asv_hits, asv_table
+        )
 
         self.write_results(results, output_file)
         self.write_results(taxaRaw, raw_output)
@@ -941,82 +1073,82 @@ class BLASTLCAAnalyzer:
 
         self.logger.info("Analysis complete")
 
+
 def main():
     """Main entry point."""
     config = Config()
 
     parser = ArgumentParser(
-        description='Parses BLAST-tabular output and produces LCAs using Fishbase and WoRMS APIs'
+        description="Parses BLAST-tabular output and produces LCAs using Fishbase and WoRMS APIs"
     )
     parser.add_argument(
-        '-f', '--file',
-        type=Path,
-        help='Input file of BLAST results',
-        required=True
+        "-f", "--file", type=Path, help="Input file of BLAST results", required=True
     )
     parser.add_argument(
-        '-a', '--asv_table',
+        "-a",
+        "--asv_table",
         type=Path,
         help='ASV count table. First column should be "ASV", last columns should be "ASV_sequence"',
-        required=True
+        required=True,
     )
     parser.add_argument(
-        '-o', '--output',
+        "-o",
+        "--output",
         type=Path,
-        help='Output file of LCAs (tab-delimited)',
-        required=True
+        help="Output file of LCAs (tab-delimited)",
+        required=True,
     )
     parser.add_argument(
-        '--raw_output',
+        "--raw_output",
         type=Path,
-        help='Output taxaRaw file for FAIRe (tab-delimited)',
-        required=True
+        help="Output taxaRaw file for FAIRe (tab-delimited)",
+        required=True,
     )
     parser.add_argument(
-        '--final_output',
+        "--final_output",
         type=Path,
-        help='Output taxaFinal file for FAIRe (tab-delimited)',
-        required=True
+        help="Output taxaFinal file for FAIRe (tab-delimited)",
+        required=True,
     )
     parser.add_argument(
-        '--cutoff',
+        "--cutoff",
         type=float,
         default=config.DEFAULT_CUTOFF,
-        help=f'Percentage cutoff for LCA calculation (default: {config.DEFAULT_CUTOFF})'
+        help=f"Percentage cutoff for LCA calculation (default: {config.DEFAULT_CUTOFF})",
     )
     parser.add_argument(
-        '--pident',
+        "--pident",
         type=float,
         default=config.DEFAULT_PIDENT_CUTOFF,
-        help=f'Minimum percentage identity for BLAST hits (default: {config.DEFAULT_PIDENT_CUTOFF})'
+        help=f"Minimum percentage identity for BLAST hits (default: {config.DEFAULT_PIDENT_CUTOFF})",
     )
     parser.add_argument(
-        '-min_coverage',
+        "-min_coverage",
         type=float,
         default=config.DEFAULT_COVER_MIN,
-        help=f'Minimum query coverage identity for BLAST hits (default: {config.DEFAULT_COVER_MIN})'
+        help=f"Minimum query coverage identity for BLAST hits (default: {config.DEFAULT_COVER_MIN})",
     )
     parser.add_argument(
-        '--missing_out',
+        "--missing_out",
         type=Path,
-        default=Path('missing.csv'),
-        help='File to write missing species to (default: missing.csv)'
+        default=Path("missing.csv"),
+        help="File to write missing species to (default: missing.csv)",
     )
     parser.add_argument(
-        '--worms_file',
+        "--worms_file",
         type=Path,
-        help='Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.'
+        help="Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.",
     )
     parser.add_argument(
-        '--log_level',
-        choices=['ERROR', 'WARNING', 'INFO', 'DEBUG'],
-        default='INFO',
-        help='Logging level (default: INFO)'
+        "--log_level",
+        choices=["ERROR", "WARNING", "INFO", "DEBUG"],
+        default="INFO",
+        help="Logging level (default: INFO)",
     )
     parser.add_argument(
-        '--no_normalise_identity', 
-        action='store_true',
-        help='Disable identity normalisation by coverage (default: normalisation enabled). Otherwise bp identity is multiplied by coverage.'
+        "--no_normalise_identity",
+        action="store_true",
+        help="Disable identity normalisation by coverage (default: normalisation enabled). Otherwise bp identity is multiplied by coverage.",
     )
 
     args = parser.parse_args()
@@ -1054,7 +1186,7 @@ def main():
         cover_minimum=args.min_coverage,
         missing_file=args.missing_out,
         worms_file=args.worms_file,
-        normalise_identity=not args.no_normalise_identity
+        normalise_identity=not args.no_normalise_identity,
     )
 
 
