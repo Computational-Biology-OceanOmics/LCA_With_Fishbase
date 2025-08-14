@@ -11,12 +11,10 @@ import tempfile
 import shutil
 from pathlib import Path
 from unittest.mock import Mock, patch, MagicMock
-import pandas as pd
-from collections import OrderedDict
 
 from calculateLCAWithFishbase import (
     Config, TaxonomicLineage, LCAResult, NCBITaxdumpParser,
-    DatabaseManager, SpeciesNameCorrector, TaxonomicAssigner,
+    SpeciesNameCorrector, TaxonomicAssigner,
     LCACalculator, BLASTLCAAnalyzer
 )
 

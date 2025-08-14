@@ -25,7 +25,7 @@ Most LCA scripts rely solely on NCBI's Taxonomy database. However, fish taxonomy
 
 The tool processes BLAST results through a three-step approach:
 
-**Fishbase first**: Queries Fishbase taxonomy for each BLAST hit. If all hits for a query sequence are found, calculates LCA using Fishbase lineages.  
+**Fishbase first**: Queries Fishbase taxonomy for each BLAST hit.
 **WoRMS fallback**: For hits not found in Fishbase, queries the World Register of Marine Species (WoRMS) database.  
 **NCBI backup**: Only uses NCBI Taxonomy when species aren't found in either Fishbase or WoRMS.  
 
@@ -120,6 +120,8 @@ or, alternatively, you can run unittests and functional tests separately:
 
 with appropriate test data in `test_data/`. These are initially written by Claude Code, then modified and expanded by me.
 
+There's a Github CI integration to run these tests on `push` in the `.github/` folder.
+
 # *IMPORTANT*
 
 - The BLAST results need the taxonomy ID. Make sure that the taxonomy ID is included in the BLAST output and not just N/A. 
@@ -128,11 +130,12 @@ with appropriate test data in `test_data/`. These are initially written by Claud
 - Fishbase, WoRMS, and NCBI Taxonomy change often. Write down the date you ran this tool.
 - Some sequences on NCBI or other databases do not have specific taxonomic labels, such as 'Carangidae sp.'. These lead to very high-level LCAs, obviously. Consider removing them before running this script.
 
-## Method: Species ID:
+## Method: Species ID
 
 What the script does:
 - go through the tabular blast results, check if every word is a valid genus in 1. Fishbase, 2. Fishbase synonyms, 3. Worms. We want to trust the Fishbase taxonomy the most but not every species we hit is in Fishbase. Mammals etc. will instead hit into Worms.
 - using the genus name, ask Fishbase what the taxonomy for that genus is. If the genus is not in Fishbase, ask Worms.
+- if there's a genus name, it follows that the next element in the row is the species name.
 - if both Fishbase and WoRMS were not found in the row, assume that the third column is the NCBI taxonomy ID. Use that to look up the lineage instead.
 - If neither Fishbase nor WoRMS nor NCBI have the species or genus, write the entire line of BLAST results to the missing species CSV.
 

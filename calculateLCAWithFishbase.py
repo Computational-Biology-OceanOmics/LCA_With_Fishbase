@@ -12,17 +12,14 @@ Expected BLAST format:
 
 import logging
 import sys
-import time
 import tarfile
-import gzip
 from argparse import ArgumentParser
 from collections import Counter, OrderedDict
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Dict, List, Optional, Set, Tuple
 from urllib.error import URLError
-from urllib.request import urlopen, urlretrieve
-import json
+from urllib.request import urlretrieve
 import pandas as pd
 
 @dataclass

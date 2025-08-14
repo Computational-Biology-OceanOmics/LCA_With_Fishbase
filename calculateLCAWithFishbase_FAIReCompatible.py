@@ -831,7 +831,7 @@ class BLASTLCAAnalyzer:
 
             try:
                 results.append(new_row | counts[asv_name])
-            except:
+            except KeyError:
                 print("Warning: can't find " + asv_name)
 
             specific_epithet = species_lca.assignment.split(" ")[-1]
