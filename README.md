@@ -57,6 +57,34 @@ This requires more input data (the asv_count_table.tsv and the final and raw tax
 
 # Usage
 
+```
+usage: calculateLCAWithFishbase.py [-h] -f FILE -o OUTPUT [--cutoff CUTOFF] [--pident PIDENT] [-min_coverage MIN_COVERAGE] [--missing_out MISSING_OUT] [--worms_file WORMS_FILE]
+                                   [--log_level {ERROR,WARNING,INFO,DEBUG}] [--no_normalise_identity]
+
+Parses BLAST-tabular output and produces LCAs using Fishbase and WoRMS APIs
+
+options:
+  -h, --help            show this help message and exit
+  -f FILE, --file FILE  Input file of BLAST results
+  -o OUTPUT, --output OUTPUT
+                        Output file of LCAs (tab-delimited)
+  --cutoff CUTOFF       Basepair identity percentage cutoff for LCA calculation (default: 1.0)
+  --pident PIDENT       Minimum percentage identity for BLAST hits (default: 90.0)
+  -min_coverage MIN_COVERAGE
+                        Minimum query coverage identity for BLAST hits (default: 90.0)
+  --missing_out MISSING_OUT
+                        File to write missing species to (default: missing.csv)
+  --worms_file WORMS_FILE
+                        Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.
+  --log_level {ERROR,WARNING,INFO,DEBUG}
+                        Logging level (default: INFO)
+  --no_normalise_identity
+                        Disable identity normalisation by coverage (default: normalisation enabled). Otherwise bp identity is multiplied by coverage.
+
+```
+
+Example command:
+
     python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
 # Usage for FAIRe compatibility
@@ -75,9 +103,6 @@ Any fairly recent version (2023-2025) should be fine, I believe.
 
 There's an optional flag that lets you ignore the query coverage in the LCA calculation. In this case, it uses only bp identity to calculate the LCA.
 
-# AI statement
-
-I've written an initial prototype (minus the NCBI Taxonomy!!!) of this code and then gave that to Claude for hardening and making production-ready. I then fixed a bunch of Claude-introduced bugs, removed most of the unnecessary comments, and added some minor bugfixes that my original implementation had already. The original non-AI code used to live in calculateLCAWithFishbase.py, and the AI code lived in calculateLCAWithFishbase_Claude.py but that got confusing, so since version 0.04 it's only one script.
 
 # Tests
 
@@ -204,6 +229,11 @@ Please contact me at pbayer AT minderoo.org
 ## Acknowledgments
 
 - Thanks to Dr Shannon Corrigan for pushing me to use the *correct* taxonomy.
+
+# AI statement
+
+I've written an initial prototype (minus the NCBI Taxonomy!!!) of this code and then gave that to Claude for hardening and making production-ready. I then fixed a bunch of Claude-introduced bugs, removed most of the unnecessary comments, and added some minor bugfixes that my original implementation had already. The original non-AI code used to live in calculateLCAWithFishbase.py, and the AI code lived in calculateLCAWithFishbase_Claude.py but that got confusing, so since version 0.04 it's only one script.
+Most of the tests were written by Claude Code, as well.
 
 ## CHANGELOG
 
