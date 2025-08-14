@@ -82,7 +82,7 @@ The input must be BLAST tabular output using this format:
 - **Input file**: Table of BLAST hits  
 - **WoRMS file** (optional): Path to WoRMS species file (default: `worms_species.txt.gz`)
 - **ASV table**: First column 'ASV', middle columns are samples, last column 'ASV_sequence'
-
+- **taxaRaw/taxaFinal**: FAIRe standard format with detailed taxonomic and identification metadata
 
 ## Output
 
@@ -102,7 +102,6 @@ ASV_17079       Teleostei  Ovalentaria...  Pomacentridae  Acanthochromis  Acanth
 ### FAIRe Compatible Output
 
 - **Main output**: 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species', 'OTU', 'numberOfUnq_BlastHits', '%ID', 'species_in_LCA', 'sources', plus sample columns
-- **taxaRaw/taxaFinal**: FAIRe standard format with detailed taxonomic and identification metadata
 
 ## Command Line Options
 
