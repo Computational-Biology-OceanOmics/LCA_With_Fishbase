@@ -13,49 +13,100 @@ This tool calculates Lowest Common Ancestor (LCA) assignments for BLAST results 
 
 Most LCA scripts rely solely on NCBI's Taxonomy database. However, fish taxonomy changes frequently, and NCBI often contains outdated classifications. Fishbase and WoRMS are updated more regularly and provide more accurate lineage information for marine organisms. Plus, Fishbase follows mostly Betancur-R, and what more could one ask for?
 
-## 📋 Table of Contents
-- [Quick Start](#usage)
-- [Dependencies](#dependencies)
-- [Input/Output](#inputoutput)
-- [Method](#method-species-id)
-- [Data Sources](#data-sources)
-- [FAQ](#faq)
-- [Tests](#tests)
-- [Changelog](#changelog)
+## Quick Start
+
+### Installation
+
+```bash
+pip install pandas pyarrow fastparquet
+```
+
+### Basic Usage
+
+```bash
+python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
+```
+
+### FAIRe Compatible Usage
+
+```bash
+python calculateLCAWithFishbase_FAIReCompatible.py -f blast_results.tsv -o lca_results.tsv \
+    --pident 90 --worms_file worms_species.txt.gz --asv_table asv_count_table.tsv \
+    --raw_output taxaRaw.tsv --final_output taxaFinal.tsv
+```
+
+## How It Works
 
 The tool processes BLAST results through a three-step approach:
 
-**Fishbase first**: Queries Fishbase taxonomy for each BLAST hit.
-**WoRMS fallback**: For hits not found in Fishbase, queries the World Register of Marine Species (WoRMS) database.  
-**NCBI backup**: Only uses NCBI Taxonomy when species aren't found in either Fishbase or WoRMS.  
+1. **Fishbase first**: Queries Fishbase taxonomy for each BLAST hit
+2. **WoRMS fallback**: For hits not found in Fishbase, queries the World Register of Marine Species (WoRMS) database
+3. **NCBI backup**: Only uses NCBI Taxonomy when species aren't found in either Fishbase or WoRMS
 
 When a query hits several species in different databases, a mix of the above may be used.
 
-# Input/Output
+### Species Identification Method
 
-**Input**: a table of BLAST hits (see below for format)
+The script:
+- Goes through tabular BLAST results and checks if every word is a valid genus in: 1) Fishbase, 2) Fishbase synonyms, 3) WoRMS
+- Uses the genus name to query Fishbase for taxonomy. If not in Fishbase, queries WoRMS
+- If there's a genus name, assumes the next element is the species name
+- If neither Fishbase nor WoRMS are found, uses the NCBI taxonomy ID from the third column
+- Writes unmatched species to a missing species CSV file
 
-**Worms file**: Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.
+### LCA Calculation Method
 
-**Output**: a table of LCAs for every query in the BLAST table.
+The LCA calculation works similarly to [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s approach, with coverage normalization:
 
-# Input/Output when using calculateLCAWithFishbase_FAIReCompatible.py
+1. Given a group of potential species for an ASV, take the species with the highest percentage base-pair identity, subtract 1 from the identity, and include all species above that cutoff in the LCA
+2. **Coverage adjustment**: BP identity is adjusted by query coverage (e.g., 99% coverage × 100% identity = 99% adjusted identity)
+3. **LCA grouping**: If multiple species fall within the cutoff, the species is set to 'dropped' and the algorithm moves up one taxonomic level, repeating for genus, family, order, and class
 
-This requires more input data (the asv_count_table.tsv and the final and raw taxa tables) but is more useful if you want output in the FAIRe standard.
+## Input Requirements
 
-**Input**: a table of BLAST hits (see below for format)
+### BLAST Output Format
 
-**Worms file**: Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.
+The input must be BLAST tabular output using this format:
 
-**ASV_table**: First column should be 'ASV', the next columns should be the samples, the last column should be 'ASV_sequence'
+```bash
+-outfmt "6 qseqid sseqid staxids sscinames scomnames sskingdoms pident length qlen slen mismatch gapopen gaps qstart qend sstart send stitle evalue bitscore qcovs qcovhsp"
+```
 
-**Output**: a table of LCAs for every query in the BLAST table.
+### Standard Script Inputs
 
-**Raw Output**: A taxaRaw table following the FAIRe standards.
+- **Input file**: Table of BLAST hits
+- **WoRMS file** (optional): Path to WoRMS species file (default: `worms_species.txt.gz`)
 
-**Final Output**: A taxaFinal table following the FAIRe standards.
+### FAIRe Compatible Script Inputs
 
-# Usage
+- **Input file**: Table of BLAST hits  
+- **WoRMS file** (optional): Path to WoRMS species file (default: `worms_species.txt.gz`)
+- **ASV table**: First column 'ASV', middle columns are samples, last column 'ASV_sequence'
+
+
+## Output
+
+### Standard Output
+
+Tab-delimited table with columns:
+- ASV_name, Class, Order, Family, Genus, Species
+- PercentageID, Coverage, Species_In_LCA, Source
+
+Example:
+```
+ASV_name        Class      Order           Family         Genus        Species                    PercentageID  Coverage  Species_In_LCA                          Source
+ASV_17067       Teleostei  Ophidiiformes   Ophidiidae     dropped      dropped                    89.60         100.00    Ventichthys biospeedoi, Bassozetus...   worms
+ASV_17079       Teleostei  Ovalentaria...  Pomacentridae  Acanthochromis  Acanthochromis polyacanthus  79.03      90.00     Acanthochromis polyacanthus            worms
+```
+
+### FAIRe Compatible Output
+
+- **Main output**: 'domain', 'phylum', 'class', 'order', 'family', 'genus', 'species', 'OTU', 'numberOfUnq_BlastHits', '%ID', 'species_in_LCA', 'sources', plus sample columns
+- **taxaRaw/taxaFinal**: FAIRe standard format with detailed taxonomic and identification metadata
+
+## Command Line Options
+
+### Standard Script
 
 ```
 usage: calculateLCAWithFishbase.py [-h] -f FILE -o OUTPUT [--cutoff CUTOFF] [--pident PIDENT] [--min_coverage MIN_COVERAGE] [--missing_out MISSING_OUT] [--worms_file WORMS_FILE]
@@ -87,21 +138,23 @@ Example command:
 
     python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
-# Usage for FAIRe compatibility
 
-    python calculateLCAWithFishbase_FAIReCompatible.py -f blast_results.tsv -o lca_results.tsv --pident 90 --worms_file worms_species.txt.gz --asv_table asv_count_table.tsv --raw_output taxaRaw.tsv --final_output taxaFinal.tsv
+### Key Parameters Explained
 
-# Dependencies
+- **--cutoff**: Controls LCA stringency - larger values include more species in LCA calculations
+- **--pident**: Minimum identity threshold for including BLAST hits (default: 90%)  
+- **--min_coverage**: Minimum query coverage threshold (default: 90%)
+- **--no_normalise_identity**: Use only BP identity without coverage adjustment (matches eDNAFlow behavior)
 
-    pip install pandas pyarrow fastparquet
+## Data sources
 
-Any fairly recent version (2023-2025) should be fine, I believe.
+Fishbase: RopenSci hosts Parquet files of Fishbase species, families, and synonyms. The Python script accesses those directly.
 
-# Turning off coverage normalisation
+Worms: I downloaded a relatively recent dump of WoRMS from GBIF at https://www.gbif.org/dataset/2d59e5db-57ad-41ff-97d6-11f5fb264527 and extracted the species names from the file `taxon.txt`. That file is included here (data/worms_species.txt). `grep -P '\tSpecies\t' taxon.txt | grep -w 'accepted' | cut -d'    ' -f 7,8,11,12,13,14,15,16,17,18 | gzip > worms_species.txt.gz`
 
-    python calculateLCAWithFishbase.py -f input.txt -o output.txt --no_normalise_identity
+NCBI: The script will download the most recent taxdump from NCBI.
 
-There's an optional flag that lets you ignore the query coverage in the LCA calculation. In this case, it uses only bp identity to calculate the LCA.
+When the script runs it will cache these files in a folder named `cache/`. Delete that folder to start with a clean slate.
 
 
 # Tests
@@ -148,15 +201,6 @@ The LCA calculation works almost the same way as [eDNAFlow](https://github.com/m
 3) The LCA itself is just a grouping: if there are several species within the cutoff, then the species is set to 'dropped' and we go up one taxonomic level, repeat for the genus, repeat for the family, repeat for the class, repeat for the order. There's no LCA voting or similar, though that's not hard to add.
 
 
-## Data sources
-
-Fishbase: RopenSci hosts Parquet files of Fishbase species, families, and synonyms. The Python script accesses those directly.
-
-Worms: I downloaded a relatively recent dump of WoRMS from GBIF at https://www.gbif.org/dataset/2d59e5db-57ad-41ff-97d6-11f5fb264527 and extracted the species names from the file `taxon.txt`. That file is included here (data/worms_species.txt). `grep -P '\tSpecies\t' taxon.txt | grep -w 'accepted' | cut -d'    ' -f 7,8,11,12,13,14,15,16,17,18 | gzip > worms_species.txt.gz`
-
-NCBI: The script will download the most recent taxdump from NCBI.
-
-When the script runs it will cache these files in a folder named `cache/`. Delete that folder to start with a clean slate.
 
 ## Input
 
