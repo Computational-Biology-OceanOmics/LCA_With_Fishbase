@@ -1,1 +1,5 @@
 cache
+blast_lca.log
+__pycache__
+missing.csv
+test_data/blast_lca.log
