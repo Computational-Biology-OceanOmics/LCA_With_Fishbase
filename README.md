@@ -114,7 +114,11 @@ What the script does:
 
 ## Method: LCA calculation
 
-The LCA calculation works almost the same way as [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s LCA calculation. Given a group of potential species for an ASV, take the species with the highest percentage base-pair identity, subtract 1 from the identity, and then include all species above that cutoff in the LCA. There is one change in the way the eDNAFlow script works: we also include query coverage. In the past we used only a 100% query coverage so this was moot, but we found many ASVs that overlapped 98%, 99% etc., not 100%. So now we adjust the bp identity by the query coverage, and then use that adjusted bp identity in the LCA calculation. The adjustment is multiplication: a query coverage of 99% and a bp identity of 100% means that the adjusted bp identity becomes 0.99 * 1 = 0.99 = 99%. The LCA itself is just a grouping: if there are several species within the cutoff, then the species is set to 'dropped' and we go up one taxonomic level, repeat for the genus, repeat for the family, repeat for the class, repeat for the order. There's no LCA voting or similar, though that's not hard to add.
+The LCA calculation works almost the same way as [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s LCA calculation.
+
+1) Given a group of potential species for an ASV, take the species with the highest percentage base-pair identity, subtract 1 from the identity, and then include all species above that cutoff in the LCA.
+2) There is one change in the way the eDNAFlow script works: we also include query coverage. In the past we used only a 100% query coverage so this was moot, but we found many ASVs that overlapped 98%, 99% etc., not 100%. So now we adjust the bp identity by the query coverage, and then use that adjusted bp identity in the LCA calculation. The adjustment is multiplication: a query coverage of 99% and a bp identity of 100% means that the adjusted bp identity becomes 0.99 * 1 = 0.99 = 99%. 
+3) The LCA itself is just a grouping: if there are several species within the cutoff, then the species is set to 'dropped' and we go up one taxonomic level, repeat for the genus, repeat for the family, repeat for the class, repeat for the order. There's no LCA voting or similar, though that's not hard to add.
 
 
 ## Data sources
@@ -180,7 +184,7 @@ The script only works with domain, phylum, class, order, family, genus, species.
 - I may have unacccepted taxonomic names in my results.
 
 Fishbase is nice in that it knows about many, but not all unaccepted names. If an unaccepted name made it into Fishbase the API returns the accepted version of this name along with the taxonomic lineage of the new, accepted name. We then use that name for the LCA. Neat, isn't it!  
-The script then checks whether the species is in WoRMS - lastly, your misspelled species name may be in the NCBI taxonomy.
+The script then checks whether the species is in WoRMS - lastly, your misspelled species name may be in the NCBI taxonomy. Check your missing names csv to see if it got picked up.
 
 - I get an error ValueError: Wrong number of dimensions. values.ndim > ndim [2 > 1]
 
