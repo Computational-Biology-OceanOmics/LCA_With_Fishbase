@@ -161,7 +161,7 @@ class TestCalculateLCAFunctional(unittest.TestCase):
             "2.0",
             "--pident",
             "85.0",
-            "-min_coverage",
+            "--min_coverage",
             "85.0",
             "--missing_out",
             str(self.test_missing),
