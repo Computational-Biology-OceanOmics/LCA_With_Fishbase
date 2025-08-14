@@ -58,7 +58,7 @@ This requires more input data (the asv_count_table.tsv and the final and raw tax
 # Usage
 
 ```
-usage: calculateLCAWithFishbase.py [-h] -f FILE -o OUTPUT [--cutoff CUTOFF] [--pident PIDENT] [-min_coverage MIN_COVERAGE] [--missing_out MISSING_OUT] [--worms_file WORMS_FILE]
+usage: calculateLCAWithFishbase.py [-h] -f FILE -o OUTPUT [--cutoff CUTOFF] [--pident PIDENT] [--min_coverage MIN_COVERAGE] [--missing_out MISSING_OUT] [--worms_file WORMS_FILE]
                                    [--log_level {ERROR,WARNING,INFO,DEBUG}] [--no_normalise_identity]
 
 Parses BLAST-tabular output and produces LCAs using Fishbase and WoRMS APIs
@@ -70,7 +70,7 @@ options:
                         Output file of LCAs (tab-delimited)
   --cutoff CUTOFF       Basepair identity percentage cutoff for LCA calculation (default: 1.0)
   --pident PIDENT       Minimum percentage identity for BLAST hits (default: 90.0)
-  -min_coverage MIN_COVERAGE
+  --min_coverage MIN_COVERAGE
                         Minimum query coverage identity for BLAST hits (default: 90.0)
   --missing_out MISSING_OUT
                         File to write missing species to (default: missing.csv)
