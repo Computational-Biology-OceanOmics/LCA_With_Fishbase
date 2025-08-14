@@ -1123,7 +1123,7 @@ def main():
         help=f"Minimum percentage identity for BLAST hits (default: {config.DEFAULT_PIDENT_CUTOFF})",
     )
     parser.add_argument(
-        "-min_coverage",
+        "--min_coverage",
         type=float,
         default=config.DEFAULT_COVER_MIN,
         help=f"Minimum query coverage identity for BLAST hits (default: {config.DEFAULT_COVER_MIN})",
