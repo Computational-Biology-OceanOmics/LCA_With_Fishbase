@@ -109,15 +109,16 @@ with appropriate test data in `test_data/`. These are initially written by Claud
 
 What the script does:
 - go through the tabular blast results, check if every word is a valid genus in 1. Fishbase, 2. Fishbase synonyms, 3. Worms. We want to trust the Fishbase taxonomy the most but not every species we hit is in Fishbase. Mammals etc. will instead hit into Worms.
-- using the genus name, ask Fishbase what the taxonomy for that genus is. If the genus is not in Fishbase, ask Worms. If the genus is not in Worms, write to the MISSING_OUT file and ignore from LCA calculation.
+- using the genus name, ask Fishbase what the taxonomy for that genus is. If the genus is not in Fishbase, ask Worms.
 - if both Fishbase and WoRMS were not found in the row, assume that the third column is the NCBI taxonomy ID. Use that to look up the lineage instead.
+- If neither Fishbase nor WoRMS nor NCBI have the species or genus, write the entire line of BLAST results to the missing species CSV.
 
 ## Method: LCA calculation
 
-The LCA calculation works almost the same way as [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s LCA calculation.
+The LCA calculation works almost the same way as [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s LCA calculation, except that we also normalise by query coverage.
 
 1) Given a group of potential species for an ASV, take the species with the highest percentage base-pair identity, subtract 1 from the identity, and then include all species above that cutoff in the LCA.
-2) There is one change in the way the eDNAFlow script works: we also include query coverage. In the past we used only a 100% query coverage so this was moot, but we found many ASVs that overlapped 98%, 99% etc., not 100%. So now we adjust the bp identity by the query coverage, and then use that adjusted bp identity in the LCA calculation. The adjustment is multiplication: a query coverage of 99% and a bp identity of 100% means that the adjusted bp identity becomes 0.99 * 1 = 0.99 = 99%. 
+2) There is one change in the way the eDNAFlow script works: we also include query coverage. In the past we used only a 100% query coverage so this was moot, but we found many ASVs that overlapped 98%, 99% etc., not 100%. So now we adjust the bp identity by the query coverage, and then use that adjusted bp identity in the LCA calculation. The adjustment is multiplication: a query coverage of 99% and a bp identity of 100% means that the adjusted bp identity becomes 0.99 * 1 = 0.99 = 99%.
 3) The LCA itself is just a grouping: if there are several species within the cutoff, then the species is set to 'dropped' and we go up one taxonomic level, repeat for the genus, repeat for the family, repeat for the class, repeat for the order. There's no LCA voting or similar, though that's not hard to add.
 
 
@@ -144,6 +145,8 @@ The input is blast-output, tabular, using this output format:
 --min_coverage changes how the BLAST results are parsed, hits below that query coverage will be ignored. Default is 90.
 
 --missing_out changes the filename of the file missing species are written to, by default 'missing.csv'. Missing species are BLAST result lines where we couldn't find anything in Fishbase, nor in WoRMS, nor in the NCBI Taxonomy. Ideally this file should be empty - if there are many rows in this file, something may have gone wrong (missing NCBI taxonomy IDs in the BLAST output?).
+
+--no_normalise_identity changes the behaviour of the LCA calculation and turns off the normalisation using the query coverage. Instead, this flag use only the bp identity. Using this flag means that the script will behave identically to the eDNAFlow LCA script.
 
 ## Output
 
