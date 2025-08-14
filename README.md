@@ -1,15 +1,13 @@
-```
-Fishbase  ──>  WoRMS  ──>  NCBI  ──>  LCA
-   🐟           🌊         🧬
-Multi-Database Taxonomic Classification
-```
-
 [![Tests](https://img.shields.io/badge/tests-43%20passed-brightgreen.svg)](.)
 [![Coverage](https://img.shields.io/badge/coverage-73%25-yellow.svg)](.)
 [![Python](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/downloads/)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-# Calculate LCA using Fishbase, then WoRMS and then NCBI
+```
+Fishbase  ──>  WoRMS  ──>  NCBI  ──>  LCA
+   🐟           🌊         🧬
+Multi-Database Taxonomic Classification
+```
 
 This tool calculates Lowest Common Ancestor (LCA) assignments for BLAST results using multiple taxonomy databases in order of preference: Fishbase → WoRMS → NCBI Taxonomy.
 
