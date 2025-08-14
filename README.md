@@ -1,9 +1,7 @@
 ```
- 🐟 Fishbase ────┐
-                  ├──► LCA Classification
- 🌊    WoRMS ────┤
-                  │
- 🧬     NCBI ────┘
+Fishbase  ──>  WoRMS  ──>  NCBI  ──>  LCA
+   🐟           🌊         🧬
+Multi-Database Taxonomic Classification
 ```
 
 [![Tests](https://img.shields.io/badge/tests-43%20passed-brightgreen.svg)](.)
