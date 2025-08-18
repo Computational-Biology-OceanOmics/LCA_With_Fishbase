@@ -59,8 +59,7 @@ The script:
 The LCA calculation works similarly to [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s approach:
 
 1. Given a group of potential species for an ASV, take the species with the highest percentage base-pair identity, subtract 1 from the identity, and include all species above that cutoff in the LCA
-2. **Coverage adjustment**: BP identity is adjusted by query coverage (e.g., 99% coverage × 100% identity = 99% adjusted identity)
-3. **LCA grouping**: If multiple species fall within the cutoff, the species is set to 'dropped' and the algorithm moves up one taxonomic level, repeating for genus, family, order, and class
+2. **LCA grouping**: If multiple species fall within the cutoff, the species is set to 'dropped' and the algorithm moves up one taxonomic level, repeating for genus, family, order, and class
 
 ## Input Requirements
 
@@ -129,7 +128,7 @@ options:
   --log_level {ERROR,WARNING,INFO,DEBUG}
                         Logging level (default: INFO)
   --normalise_identity
-                        Disable identity normalisation by coverage (default: normalisation enabled). Otherwise bp identity is multiplied by coverage.
+                        Enable identity normalisation by coverage (default: normalisation enabled). Otherwise bp identity is multiplied by coverage.
 
 ```
 
@@ -137,13 +136,6 @@ Example command:
 
     python calculateLCAWithFishbase.py -f blast_results.tsv -o lca_results.tsv --pident 97
 
-
-### Key Parameters Explained
-
-- **--cutoff**: Controls LCA stringency - larger values include more species in LCA calculations
-- **--pident**: Minimum identity threshold for including BLAST hits (default: 90%)  
-- **--min_coverage**: Minimum query coverage threshold (default: 90%)
-- **--no_normalise_identity**: Use only BP identity without coverage adjustment (matches eDNAFlow behavior)
 
 # Turning on coverage normalisation
 
