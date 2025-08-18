@@ -59,7 +59,7 @@ This requires more input data (the asv_count_table.tsv and the final and raw tax
 
 ```
 usage: calculateLCAWithFishbase.py [-h] -f FILE -o OUTPUT [--cutoff CUTOFF] [--pident PIDENT] [--min_coverage MIN_COVERAGE] [--missing_out MISSING_OUT] [--worms_file WORMS_FILE]
-                                   [--log_level {ERROR,WARNING,INFO,DEBUG}] [--no_normalise_identity]
+                                   [--log_level {ERROR,WARNING,INFO,DEBUG}] [--normalise_identity]
 
 Parses BLAST-tabular output and produces LCAs using Fishbase and WoRMS APIs
 
@@ -78,7 +78,7 @@ options:
                         Path to WoRMS species file (optional). Default is worms_species.txt.gz, included in the Github repository.
   --log_level {ERROR,WARNING,INFO,DEBUG}
                         Logging level (default: INFO)
-  --no_normalise_identity
+  --normalise_identity
                         Disable identity normalisation by coverage (default: normalisation enabled). Otherwise bp identity is multiplied by coverage.
 
 ```
@@ -97,11 +97,11 @@ Example command:
 
 Any fairly recent version (2023-2025) should be fine, I believe.
 
-# Turning off coverage normalisation
+# Turning on coverage normalisation
 
-    python calculateLCAWithFishbase.py -f input.txt -o output.txt --no_normalise_identity
+    python calculateLCAWithFishbase.py -f input.txt -o output.txt --normalise_identity
 
-There's an optional flag that lets you ignore the query coverage in the LCA calculation. In this case, it uses only bp identity to calculate the LCA.
+There's an optional flag that lets you include the query coverage in the LCA calculation. In this case, it multiplies bp identity by coverage before calculating the LCA.
 
 
 # Tests
@@ -141,11 +141,10 @@ What the script does:
 
 ## Method: LCA calculation
 
-The LCA calculation works almost the same way as [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s LCA calculation, except that we also normalise by query coverage.
+The LCA calculation works almost the same way as [eDNAFlow](https://github.com/mahsa-mousavi/eDNAFlow)'s LCA calculation, except that we sort the hits by bitscore before LCA calculation.
 
-1) Given a group of potential species for an ASV, take the species with the highest percentage base-pair identity, subtract 1 from the identity, and then include all species above that cutoff in the LCA.
-2) There is one change in the way the eDNAFlow script works: we also include query coverage. In the past we used only a 100% query coverage so this was moot, but we found many ASVs that overlapped 98%, 99% etc., not 100%. So now we adjust the bp identity by the query coverage, and then use that adjusted bp identity in the LCA calculation. The adjustment is multiplication: a query coverage of 99% and a bp identity of 100% means that the adjusted bp identity becomes 0.99 * 1 = 0.99 = 99%.
-3) The LCA itself is just a grouping: if there are several species within the cutoff, then the species is set to 'dropped' and we go up one taxonomic level, repeat for the genus, repeat for the family, repeat for the class, repeat for the order. There's no LCA voting or similar, though that's not hard to add.
+1) Given a group of potential species for an ASV, take the species with the highest bitscore, subtract 1 from that bp identity, and then include all species above that cutoff in the LCA.
+2) The LCA itself is just a grouping: if there are several species within the cutoff, then the species is set to 'dropped' and we go up one taxonomic level, repeat for the genus, repeat for the family, repeat for the class, repeat for the order. There's no LCA voting or similar, though that's not hard to add.
 
 
 ## Data sources
@@ -172,7 +171,7 @@ The input is blast-output, tabular, using this output format:
 
 --missing_out changes the filename of the file missing species are written to, by default 'missing.csv'. Missing species are BLAST result lines where we couldn't find anything in Fishbase, nor in WoRMS, nor in the NCBI Taxonomy. Ideally this file should be empty - if there are many rows in this file, something may have gone wrong (missing NCBI taxonomy IDs in the BLAST output?).
 
---no_normalise_identity changes the behaviour of the LCA calculation and turns off the normalisation using the query coverage. Instead, this flag use only the bp identity. Using this flag means that the script will behave identically to the eDNAFlow LCA script.
+--normalise_identity changes the behaviour of the LCA calculation and turns on the normalisation using the query coverage.
 
 ## Output
 

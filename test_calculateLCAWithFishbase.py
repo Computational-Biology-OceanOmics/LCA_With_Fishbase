@@ -152,7 +152,7 @@ class TestLCACalculator(unittest.TestCase):
 
     def test_single_taxon_lca(self):
         """Test LCA calculation with single taxon."""
-        entries = [(95.0, "Gobius niger", 100.0)]
+        entries = [(95.0, "Gobius niger", 100.0, 500)]
         result = self.calculator.calculate_lca(entries)
 
         self.assertEqual(result.percentage, 95.0)
@@ -161,7 +161,7 @@ class TestLCACalculator(unittest.TestCase):
 
     def test_multiple_taxa_within_cutoff(self):
         """Test LCA calculation with multiple taxa within cutoff."""
-        entries = [(95.0, "Gobius niger", 100.0), (94.5, "Gobius cobitis", 100.0)]
+        entries = [(95.0, "Gobius niger", 100.0, 500), (94.5, "Gobius cobitis", 100.0, 490)]
         result = self.calculator.calculate_lca(entries)
 
         self.assertEqual(result.percentage, 95.0)  # CHANGE: should be the max now.
@@ -170,28 +170,28 @@ class TestLCACalculator(unittest.TestCase):
 
     def test_multiple_taxa_within_coverage_cutoff(self):
         """Test LCA calculation with multiple taxa within coverage cutoff."""
-        entries = [(95.0, "Gobius niger", 90.0), (90.5, "Gobius cobitis", 100.0)]
+        entries = [(95.0, "Gobius niger", 90.0, 450), (90.5, "Gobius cobitis", 100.0, 410)]
         result = self.calculator.calculate_lca(entries)
 
-        self.assertEqual(result.percentage, 90.5)
-        self.assertEqual(result.coverage, 100.0)
-        self.assertEqual(result.assignment, "Gobius cobitis")
-        self.assertEqual(result.included_taxa, {"Gobius cobitis"})
+        self.assertEqual(result.percentage, 95.0)
+        self.assertEqual(result.coverage, 90.0)
+        self.assertEqual(result.assignment, "Gobius niger")
+        self.assertEqual(result.included_taxa, {"Gobius niger"})
 
     def test_multiple_complex_taxa(self):
         """Test LCA calculation with multiple taxa within coverage cutoff."""
         entries = [
-            (95.0, "Gobius niger", 90.0),
-            (90.5, "Gobius cobitis", 100.0),
-            (95, "Gobius madeup", 100),
-            (96, "Gobius alsomadeup", 100),
+            (95.0, "Gobius niger", 90.0, 450),
+            (90.5, "Gobius cobitis", 100.0, 410),
+            (95, "Gobius madeup", 100, 500),
+            (96, "Gobius alsomadeup", 100, 510),
         ]
         result = self.calculator.calculate_lca(entries)
 
         self.assertEqual(result.percentage, 96)
         self.assertEqual(result.coverage, 100.0)
         self.assertEqual(result.assignment, "dropped")
-        self.assertEqual(result.included_taxa, {"Gobius madeup", "Gobius alsomadeup"})
+        self.assertEqual(result.included_taxa, {"Gobius madeup", "Gobius alsomadeup", "Gobius niger"})
 
     def test_empty_entries(self):
         """Test LCA calculation with empty entries."""
@@ -315,7 +315,7 @@ class TestBLASTLCAAnalyzer(unittest.TestCase):
 
         self.assertIn("ASV1", result)
         self.assertEqual(len(result["ASV1"]), 1)
-        source, pident, lineage, coverage = result["ASV1"][0]
+        source, pident, lineage, coverage, bitscore = result["ASV1"][0]
         self.assertEqual(source, "fishbase")
         self.assertEqual(coverage, 100.0)
         self.assertEqual(pident, 95.0)
@@ -326,7 +326,7 @@ class TestBLASTLCAAnalyzer(unittest.TestCase):
         mock_lineage = TaxonomicLineage(
             "Actinopterygii", "Perciformes", "Gobiidae", "Gobius", "Gobius niger"
         )
-        asv_hits = {"ASV1": [("fishbase", 95.0, mock_lineage, 100.0)]}
+        asv_hits = {"ASV1": [("fishbase", 95.0, mock_lineage, 100.0, 200)]}
 
         results = self.analyzer.calculate_lca_assignments(asv_hits)
 

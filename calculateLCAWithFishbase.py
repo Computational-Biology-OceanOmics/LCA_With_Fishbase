@@ -56,6 +56,7 @@ class Config:
     ]
     PIDENT_COLUMN_INDEX: int = 6
     COV_COLUMN_INDEX: int = 20
+    BITSCORE_COLUMN_INDEX: int = -3
     NCBI_TAXDUMP_URL: str = "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz"
 
 
@@ -531,16 +532,16 @@ class TaxonomicAssigner:
 class LCACalculator:
     """Calculates Lowest Common Ancestor from taxonomic hits."""
 
-    def __init__(self, cutoff: float, normalise_identity: bool = True):
+    def __init__(self, cutoff: float, normalise_identity: bool = False):
         self.cutoff = cutoff
         self.normalise_identity = normalise_identity
 
     def calculate_lca(self, entries: List[Tuple[float, str, float]]) -> LCAResult:
         """
-        Calculate LCA from a list of (percentage, taxon, query_cov) tuples.
+        Calculate LCA from a list of (percentage, taxon, query_cov, bitscore) tuples.
 
         Args:
-            entries: List of (percentage_identity, taxon_name, query_cov) tuples
+            entries: List of (percentage_identity, taxon_name, query_cov, bitscore) tuples
 
         Returns:
             LCAResult with percentage, assignment, and included taxa
@@ -551,12 +552,12 @@ class LCACalculator:
         # Optionally adjust the bp identity by the coverage
         if self.normalise_identity:
             entries = [
-                ((entry[0] / 100) * (entry[2] / 100) * 100, entry[1], entry[2])
+                ((entry[0] / 100) * (entry[2] / 100) * 100, entry[1], entry[2], entry[3])
                 for entry in entries
             ]
 
-        sorted_entries = sorted(entries)
-        # sorted_entries_by_coverage = sorted(entries, key=lambda x: x[2]) # sort by the coverage, the last number in every tuple
+        #sorted_entries = sorted(entries) # used to score entries by percentage identity alone
+        sorted_entries = sorted(entries, key=lambda x: x[-1]) # sort by bitscore, the last number in every tuple
         top_percentage = sorted_entries[-1][0]
         percentage_threshold = top_percentage - self.cutoff
         # top_coverage = sorted_entries_by_coverage[-1][2]
@@ -566,12 +567,12 @@ class LCACalculator:
         valid_percentages = []
         valid_coverages = []
 
-        for adjusted_percentage, taxon, coverage in sorted_entries:
+        for percentage, taxon, coverage, bitscore in sorted_entries:
             if (
-                adjusted_percentage >= percentage_threshold
-            ):  # and coverage >= coverage_threshold:
+                percentage >= percentage_threshold
+            ):
                 filtered_taxa.add(taxon)
-                valid_percentages.append(adjusted_percentage)
+                valid_percentages.append(percentage)
                 valid_coverages.append(coverage)
 
         # mean_percentage = statistics.mean(valid_percentages)
@@ -687,6 +688,17 @@ class BLASTLCAAnalyzer:
                         if query_coverage < coverage_cutoff:
                             continue
 
+
+                        try:
+                            bitscore = float(
+                                elements[self.config.BITSCORE_COLUMN_INDEX]
+                            )
+                        except (ValueError, IndexError):
+                            self.logger.warning(
+                                f"Line {line_num}: Invalid bitscore value {elements[self.config.BITSCORE_COLUMN_INDEX]}"
+                            )
+                            continue
+
                         # Split for species name parsing
                         # BOLD uses | as delimiter so let's also split by that
                         line_elements = corrected_line.replace("|", " ").split()
@@ -709,7 +721,7 @@ class BLASTLCAAnalyzer:
 
                         genus, species_part, source, lineage = species_info
 
-                        hit_info = (source, pident, lineage, query_coverage)
+                        hit_info = (source, pident, lineage, query_coverage, bitscore)
                         if asv_name not in asv_hits:
                             asv_hits[asv_name] = [hit_info]
                         else:
@@ -748,7 +760,7 @@ class BLASTLCAAnalyzer:
             class_hits = []
             sources = set()
 
-            for source, pident, lineage, query_cov in hits:
+            for source, pident, lineage, query_cov, bitscore in hits:
                 sources.add(source)
                 lineage_list = lineage.to_list()
 
@@ -757,15 +769,15 @@ class BLASTLCAAnalyzer:
                         # Some entries in worms/fishbase have no Order or Class - ignore
                         continue
                     if rank == "S":
-                        species_hits.append((pident, name, query_cov))
+                        species_hits.append((pident, name, query_cov, bitscore))
                     elif rank == "G":
-                        genus_hits.append((pident, name, query_cov))
+                        genus_hits.append((pident, name, query_cov, bitscore))
                     elif rank == "F":
-                        family_hits.append((pident, name, query_cov))
+                        family_hits.append((pident, name, query_cov, bitscore))
                     elif rank == "O":
-                        order_hits.append((pident, name, query_cov))
+                        order_hits.append((pident, name, query_cov, bitscore))
                     elif rank == "C":
-                        class_hits.append((pident, name, query_cov))
+                        class_hits.append((pident, name, query_cov, bitscore))
 
             # Calculate LCA at each level
             species_lca = self.lca_calculator.calculate_lca(species_hits)
@@ -829,7 +841,7 @@ class BLASTLCAAnalyzer:
         cover_minimum: float,
         missing_file: Path,
         worms_file: Optional[Path] = None,
-        normalise_identity: bool = True,
+        normalise_identity: bool = False,
     ):
         """Run the complete analysis pipeline."""
         self.logger.info("Starting BLAST LCA analysis")
@@ -908,9 +920,9 @@ def main():
         help="Logging level (default: INFO)",
     )
     parser.add_argument(
-        "--no_normalise_identity",
+        "--normalise_identity",
         action="store_true",
-        help="Disable identity normalisation by coverage (default: normalisation enabled). Otherwise bp identity is multiplied by coverage.",
+        help="Disable identity normalisation by coverage (default: normalisation disabled). Otherwise bp identity is multiplied by coverage.",
     )
 
     args = parser.parse_args()
@@ -941,7 +953,7 @@ def main():
         pident_cutoff=args.pident,
         missing_file=args.missing_out,
         worms_file=args.worms_file,
-        normalise_identity=not args.no_normalise_identity,
+        normalise_identity=args.normalise_identity,
     )
 
 
